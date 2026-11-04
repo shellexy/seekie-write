@@ -1,5 +1,6 @@
 import type { Ctx } from '@milkdown/kit/ctx'
 import { applyBlockType, clearFormat } from './topBarConfig'
+import { insertHr, insertImageFromPicker, insertTable } from './insert'
 import { redo, scrollToPos, selectRange, undo } from './tabs'
 
 /**
@@ -14,6 +15,9 @@ export type EditorCommand =
   | 'format:h2'
   | 'format:h3'
   | 'format:clear'
+  | 'insert:image'
+  | 'insert:table'
+  | 'insert:hr'
 
 export function runEditorCommand(ctx: Ctx, command: string): boolean {
   switch (command) {
@@ -37,6 +41,15 @@ export function runEditorCommand(ctx: Ctx, command: string): boolean {
       return true
     case 'format:clear':
       clearFormat(ctx)
+      return true
+    case 'insert:image':
+      insertImageFromPicker(ctx)
+      return true
+    case 'insert:table':
+      insertTable(ctx)
+      return true
+    case 'insert:hr':
+      insertHr(ctx)
       return true
     default:
       return false

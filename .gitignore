@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-electron/
 *.log
+*.tsbuildinfo
 .env*
 !.env.example
 .playwright/

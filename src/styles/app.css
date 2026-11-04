@@ -43,10 +43,16 @@
   min-width: 0;
 }
 
+.titlebar__files {
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
 .file-group {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 0 0 auto;
 }
 
 .vr {
@@ -87,6 +93,8 @@
   overflow-x: auto;
   overflow-y: hidden;
   max-width: min(46vw, 640px);
+  min-width: 0;
+  flex: 0 1 auto;
   scrollbar-width: none;
   padding: 2px 0;
 }
@@ -391,6 +399,10 @@
   display: flex;
   align-items: baseline;
   gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sf__count b {
   font-size: 16px;
@@ -401,12 +413,10 @@
 .sf__sel {
   color: var(--accent);
 }
-.sf__detail,
-.sf__path {
+.sf__detail {
   color: var(--fg-faint);
+  font-size: 10px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .sf__row {
   display: flex;
@@ -440,6 +450,75 @@
 }
 .sb__link:hover {
   text-decoration: underline;
+}
+
+/* ------------------------------- 查找替换 ------------------------------- */
+
+.findbar {
+  position: absolute;
+  top: 52px;
+  right: 18px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  min-width: 380px;
+  max-width: min(520px, calc(100% - 36px));
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+}
+.findbar__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.findbar__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  outline: none;
+}
+.findbar__input:focus {
+  border-color: var(--accent);
+}
+.findbar__count {
+  min-width: 38px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.findbar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 5px;
+  border-radius: 5px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.findbar__btn:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+.findbar__btn.is-on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.findbar__btn--text {
+  padding: 0 8px;
 }
 
 /* ------------------------------- 浮层 ------------------------------- */
@@ -499,6 +578,9 @@
   box-shadow: var(--shadow-md);
   animation: pop-in 0.14s ease;
 }
+.dialog--settings {
+  width: min(560px, 92vw);
+}
 @keyframes pop-in {
   from {
     transform: scale(0.97);
@@ -522,6 +604,53 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 18px;
+}
+
+/* 设置面板 */
+.settings {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+}
+.settings__group {
+  display: grid;
+  gap: 8px;
+}
+.settings__group h4 {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+.settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+.settings__row select {
+  width: 220px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+}
+.settings__row input[type='range'] {
+  flex: 1 1 auto;
+  accent-color: var(--accent);
+}
+.settings__value {
+  width: 46px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
 }
 
 .btn {

@@ -7,6 +7,7 @@ import type { ImageSaveMode } from '@shared/types'
 import { api } from './lib/api'
 import { useApp, type TabMeta } from './store/app'
 import { applyThemeClass, createEditor } from './editor/createEditor'
+import { applyCrepeTheme, applyEditorTypography } from './editor/theme'
 import { TabStore, scrollToPos, selectRange } from './editor/tabs'
 import { EditorSession, type EditorSnapshot } from './editor/session'
 import { runEditorCommand } from './editor/commandBus'
@@ -20,6 +21,8 @@ import { TitleBar } from './components/TitleBar'
 import { Outline } from './components/Outline'
 import { EditorPane } from './components/EditorPane'
 import { SidebarFooter } from './components/SidebarFooter'
+import { FindBar, type FindMode } from './components/FindBar'
+import { SettingsDialog } from './components/SettingsDialog'
 import { Toast, ConvertingOverlay, ConfirmDialog, ImageModeDialog } from './components/Overlays'
 
 const BLANK_DOC = '# 未命名\n\n'
@@ -47,6 +50,11 @@ export default function App() {
   const [outline, setOutline] = useState<OutlineItem[]>([])
   const [cursorPos, setCursorPos] = useState(0)
   const [imageDialog, setImageDialog] = useState({ open: false, pendingSave: false })
+  const [findState, setFindState] = useState<{ open: boolean; mode: FindMode }>({
+    open: false,
+    mode: 'find',
+  })
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -254,6 +262,7 @@ export default function App() {
 
   const newTabRef = useRef<(() => void) | null>(null)
   const activateRef = useRef<((id: string) => void) | null>(null)
+  const openPathRef = useRef<((path: string) => Promise<void>) | null>(null)
 
   const bootEditor = useCallback(
     (root: HTMLDivElement) => {
@@ -267,7 +276,7 @@ export default function App() {
       })
       crepeRef.current = crepe
 
-      void crepe.create().then(() => {
+      void crepe.create().then(async () => {
         const ctx = crepe.editor.ctx
         ctxRef.current = ctx
         const view = ctx.get(editorViewCtx)
@@ -299,7 +308,7 @@ export default function App() {
         }) as typeof view.dispatch
 
         installTopBarTooltips(root)
-        syncTheme()
+        applyAppearance()
 
         // Crepe 粘贴/拖入图片 → 记到当前标签的 assets 上，保存时统一处理
         setAssetAddedHandler((tabIdForAsset, asset) => {
@@ -310,7 +319,10 @@ export default function App() {
           const current = useApp.getState().tabs.find((t) => t.id === target)
           patchTab(target, { assets: [...(current?.assets ?? []), asset] })
         })
-        void restoreSession()
+        // 启动参数里的文件：渲染层就绪后再主动拉取，避免 did-finish-load 早于订阅
+        const startupFile = await api.app.takeStartupFile()
+        if (startupFile) await openPathRef.current?.(startupFile)
+        await restoreSession()
       })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -448,6 +460,7 @@ export default function App() {
     },
     [activate, flushTimer, notify, setConverting],
   )
+  openPathRef.current = openPath
 
   /* ----------------------------- 菜单命令 ----------------------------- */
 
@@ -485,6 +498,15 @@ export default function App() {
           break
         case 'view:zoom-reset':
           useApp.getState().setZoom(1)
+          break
+        case 'edit:find':
+          setFindState({ open: true, mode: 'find' })
+          break
+        case 'edit:replace':
+          setFindState({ open: true, mode: 'replace' })
+          break
+        case 'app:settings':
+          setSettingsOpen(true)
           break
         case 'help:about':
           notify('seekie-write 0.1.0 · Electron + Milkdown Crepe')
@@ -587,23 +609,25 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [saveDraftIfNeeded])
 
-  /* ----------------------------- 主题 ----------------------------- */
+  /* ----------------------------- 主题 / 排版 ----------------------------- */
 
-  const syncTheme = useCallback(() => {
-    const theme = useApp.getState().settings.theme
+  const applyAppearance = useCallback(() => {
+    const current = useApp.getState().settings
     const dark =
-      theme === 'dark' ||
-      (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      current.theme === 'dark' ||
+      (current.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    applyCrepeTheme(current.crepeTheme, dark)
+    applyEditorTypography(current.fontFamily, current.fontSize, current.contentWidth)
     applyThemeClass(document.getElementById('crepe-root'), dark)
   }, [])
 
   useEffect(() => {
-    syncTheme()
+    applyAppearance()
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    mq.addEventListener('change', syncTheme)
-    return () => mq.removeEventListener('change', syncTheme)
-  }, [settings.theme, syncTheme])
+    mq.addEventListener('change', applyAppearance)
+    return () => mq.removeEventListener('change', applyAppearance)
+  }, [settings, applyAppearance])
 
   /* ----------------------------- 设置 / 卸载 ----------------------------- */
 
@@ -630,6 +654,18 @@ export default function App() {
               if (p) void openPath(p)
             }),
           onSave: () => saveActive('manual'),
+          onSaveAs: () => saveActive('saveAs'),
+          onUndo: () => {
+            const ctx = ctxRef.current
+            if (ctx) runEditorCommand(ctx, 'edit:undo')
+          },
+          onRedo: () => {
+            const ctx = ctxRef.current
+            if (ctx) runEditorCommand(ctx, 'edit:redo')
+          },
+          onFind: () => setFindState({ open: true, mode: 'find' }),
+          onReplace: () => setFindState({ open: true, mode: 'replace' }),
+          onSettings: () => setSettingsOpen(true),
           onActivateTab: activate,
           onCloseTab: closeTab,
         }}
@@ -666,6 +702,12 @@ export default function App() {
 
         <div className="main" style={{ zoom }}>
           <EditorPane onReady={bootEditor} />
+          <FindBar
+            open={findState.open}
+            mode={findState.mode}
+            getCtx={() => ctxRef.current}
+            onClose={() => setFindState((state) => ({ ...state, open: false }))}
+          />
         </div>
       </div>
 
@@ -689,6 +731,8 @@ export default function App() {
         onCancel={() => setConfirmState((c) => ({ ...c, open: false }))}
         onConfirm={confirmState.onConfirm}
       />
+
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <Toast />
       <ConvertingOverlay />

@@ -79,3 +79,48 @@ export const IconWarning = (p: P) => (
     <path d="M12 10v4.2M12 17.2v.1" />
   </svg>
 )
+
+export const IconSaveAs = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M5 4.8A1.8 1.8 0 0 1 6.8 3h8.7L19 6.5v12.7A1.8 1.8 0 0 1 17.2 21H6.8A1.8 1.8 0 0 1 5 19.2z" />
+    <path d="M9 3v4.6h6V3" />
+    <path d="M12 21v-5m0 0-2 2m2-2 2 2" />
+  </svg>
+)
+
+export const IconUndo = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 6.5 4.5 11 9 15.5" />
+    <path d="M4.5 11H14a5 5 0 0 1 0 10h-2.5" />
+  </svg>
+)
+
+export const IconRedo = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M15 6.5 19.5 11 15 15.5" />
+    <path d="M19.5 11H10a5 5 0 0 0 0 10h2.5" />
+  </svg>
+)
+
+export const IconFind = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="10.5" cy="10.5" r="5.6" />
+    <path d="m14.8 14.8 4.7 4.7" />
+  </svg>
+)
+
+export const IconReplace = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 8.2h11" />
+    <path d="m12.4 5.6 2.6 2.6-2.6 2.6" />
+    <path d="M20 15.8H9" />
+    <path d="m11.6 13.2-2.6 2.6 2.6 2.6" />
+  </svg>
+)
+
+export const IconSettings = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="3.1" />
+    <path d="M12 3.2v2.4M12 18.4v2.4M3.2 12h2.4M18.4 12h2.4M5.8 5.8l1.7 1.7M16.5 16.5l1.7 1.7M18.2 5.8l-1.7 1.7M7.5 16.5l-1.7 1.7" />
+  </svg>
+)

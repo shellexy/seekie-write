@@ -6,6 +6,12 @@ import {
   IconNew,
   IconOpen,
   IconSave,
+  IconSaveAs,
+  IconUndo,
+  IconRedo,
+  IconFind,
+  IconReplace,
+  IconSettings,
   IconSidebar,
   IconMinimize,
   IconMaximize,
@@ -17,6 +23,12 @@ export interface TitleBarActions {
   onNew: () => void
   onOpen: () => void
   onSave: () => void
+  onSaveAs: () => void
+  onUndo: () => void
+  onRedo: () => void
+  onFind: () => void
+  onReplace: () => void
+  onSettings: () => void
   onActivateTab: (id: string) => void
   onCloseTab: (id: string) => void
 }
@@ -70,7 +82,48 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
           <button className="icon-btn" onClick={actions.onSave} title="保存（Ctrl+S）" aria-label="保存">
             <IconSave />
           </button>
+          <button
+            className="icon-btn"
+            onClick={actions.onSaveAs}
+            title="另存为（Ctrl+Shift+S）"
+            aria-label="另存为"
+          >
+            <IconSaveAs />
+          </button>
         </div>
+
+        <span className="vr" />
+
+        <div className="file-group">
+          <button className="icon-btn" onClick={actions.onUndo} title="撤销（Ctrl+Z）" aria-label="撤销">
+            <IconUndo />
+          </button>
+          <button className="icon-btn" onClick={actions.onRedo} title="重做（Ctrl+Shift+Z）" aria-label="重做">
+            <IconRedo />
+          </button>
+          <button className="icon-btn" onClick={actions.onFind} title="查找（Ctrl+F）" aria-label="查找">
+            <IconFind />
+          </button>
+          <button
+            className="icon-btn"
+            onClick={actions.onReplace}
+            title="替换（Ctrl+H）"
+            aria-label="替换"
+          >
+            <IconReplace />
+          </button>
+        </div>
+
+        <span className="vr" />
+
+        <button
+          className="icon-btn"
+          onClick={actions.onSettings}
+          title="设置（Ctrl+,）"
+          aria-label="设置"
+        >
+          <IconSettings />
+        </button>
 
         {tabs.length > 0 && (
           <>

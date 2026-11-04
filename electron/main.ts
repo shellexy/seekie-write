@@ -148,6 +148,51 @@ function createWindow(): void {
   // 拖文件进窗口：把路径交给渲染层打开
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault())
 
+  // 正文区右键菜单（只在可编辑区域弹出）
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    if (!params.isEditable) return
+    const send = (command: string) => () =>
+      mainWindow?.webContents.send(IPC.menuCommand, { command })
+    const template: MenuItemConstructorOptions[] = []
+
+    // 拼写建议
+    if (params.misspelledWord) {
+      for (const suggestion of params.dictionarySuggestions.slice(0, 5)) {
+        template.push({
+          label: suggestion,
+          click: () => mainWindow?.webContents.replaceMisspelling(suggestion),
+        })
+      }
+      if (template.length) template.push({ type: 'separator' })
+    }
+
+    template.push(
+      // ProseMirror 的撤销栈不在 Chromium 里，editFlags.canUndo 不可信，保持可点
+      { label: '撤销', click: send('edit:undo') },
+      { label: '重做', click: send('edit:redo') },
+      { type: 'separator' },
+      { label: '剪切', role: 'cut', enabled: params.editFlags.canCut },
+      { label: '复制', role: 'copy', enabled: params.editFlags.canCopy },
+      { label: '粘贴', role: 'paste', enabled: params.editFlags.canPaste },
+      { label: '全选', role: 'selectAll', enabled: params.editFlags.canSelectAll },
+      { type: 'separator' },
+      {
+        label: '插入',
+        submenu: [
+          { label: '图片…', click: send('insert:image') },
+          { label: '表格', click: send('insert:table') },
+          { label: '分割线', click: send('insert:hr') },
+        ],
+      },
+      { label: '清除格式', click: send('format:clear') },
+      { type: 'separator' },
+      { label: '查找…', click: send('edit:find') },
+      { label: '替换…', click: send('edit:replace') },
+    )
+
+    Menu.buildFromTemplate(template).popup({ window: mainWindow ?? undefined })
+  })
+
   // 外链用系统浏览器打开，绝不接管主窗口
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) shell.openExternal(url)
@@ -165,9 +210,6 @@ function createWindow(): void {
       maximized: mainWindow.isMaximized(),
       focused: true,
     } satisfies WindowStatePayload)
-    const file = pendingOpenFile ?? pickFileFromArgv(process.argv)
-    pendingOpenFile = null
-    if (file) mainWindow?.webContents.send(IPC.openFileRequest, file)
   })
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -211,6 +253,9 @@ function buildMenu(): void {
         { label: '全选', accelerator: 'CmdOrCtrl+A', role: 'selectAll' },
         { type: 'separator' },
         { label: '查找…', accelerator: 'CmdOrCtrl+F', click: send('edit:find') },
+        { label: '替换…', accelerator: 'CmdOrCtrl+H', click: send('edit:replace') },
+        { type: 'separator' },
+        { label: '设置…', accelerator: 'CmdOrCtrl+,', click: send('app:settings') },
       ],
     },
     {
@@ -262,6 +307,11 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.fileOpenDialog, async () => pickOpenFile(mainWindow))
+  ipcMain.handle(IPC.takeStartupFile, async () => {
+    const file = pendingOpenFile
+    pendingOpenFile = null
+    return file
+  })
   ipcMain.handle(IPC.fileOpenPath, async (_e, path: string) => {
     if (mainWindow) mainWindow.webContents.send(IPC.openFileRequest, path)
     return true
@@ -298,6 +348,7 @@ function registerIpc(): void {
 }
 
 async function init(): Promise<void> {
+  pendingOpenFile = pickFileFromArgv(process.argv)
   registerAssetProtocol()
   registerIpc()
   buildMenu()

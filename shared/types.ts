@@ -2,6 +2,15 @@
 
 export type ImageSaveMode = 'relative' | 'base64'
 
+/** 外观：跟随系统 / 浅色 / 深色 */
+export type ThemeMode = 'light' | 'dark' | 'system'
+
+/** 编辑器主题：跟随应用配色，或 Crepe 自带主题 */
+export type CrepeTheme = 'app' | 'frame' | 'classic' | 'nord'
+
+/** 正文字体族 */
+export type EditorFontFamily = 'serif' | 'sans' | 'mono'
+
 /** 转换后的内嵌资源（图片），保存在内存里，等保存文档时再落盘 */
 export interface DocAsset {
   /** 在本文档内的编号，用于 seekie-asset://<tabId>/<assetId> */
@@ -87,10 +96,15 @@ export interface SessionState {
 export interface AppSettings {
   imageMode: ImageSaveMode
   autoSaveDelay: number
-  theme: 'light' | 'dark' | 'system'
+  theme: ThemeMode
+  crepeTheme: CrepeTheme
+  /** 正文最大宽度（px）；0 表示全宽 */
+  contentWidth: number
+  fontFamily: EditorFontFamily
+  /** 正文字号（px） */
+  fontSize: number
   sidebarVisible: boolean
   sidebarWidth: number
-  fontScale: number
 }
 
 export interface WindowStatePayload {
@@ -130,6 +144,8 @@ export const IPC = {
   settingsSet: 'settings:set',
   // 打开文件（从菜单 / 第二实例 / 拖拽）
   openFileRequest: 'app:open-file-request',
+  /** 渲染层就绪后主动拉取启动参数里的文件（避免 did-finish-load 时事件丢失） */
+  takeStartupFile: 'app:take-startup-file',
   // 关闭前的落盘握手
   beforeClose: 'app:before-close',
   closeReady: 'app:close-ready',

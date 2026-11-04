@@ -2,15 +2,7 @@ import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AppSettings } from '../../shared/types'
-
-const DEFAULT_SETTINGS: AppSettings = {
-  imageMode: 'relative',
-  autoSaveDelay: 800,
-  theme: 'system',
-  sidebarVisible: true,
-  sidebarWidth: 240,
-  fontScale: 1,
-}
+import { DEFAULT_SETTINGS } from '../../shared/defaults'
 
 let cached: AppSettings | null = null
 

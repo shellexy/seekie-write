@@ -2,6 +2,7 @@ import type { Crepe, CrepeFeature } from '@milkdown/crepe'
 import type { Ctx } from '@milkdown/kit/ctx'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import { EditorState as PSState, TextSelection } from '@milkdown/kit/prose/state'
+import type { Plugin } from '@milkdown/kit/prose/state'
 import {
   commandsCtx,
   editorStateCtx,
@@ -12,6 +13,7 @@ import {
 } from '@milkdown/kit/core'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { undoCommand, redoCommand } from '@milkdown/kit/plugin/history'
+import { searchPlugin } from './searchPlugin'
 
 export interface TabRuntime {
   id: string
@@ -35,6 +37,8 @@ export class TabStore {
   private scroll = new Map<string, number>()
   private activeId: string | null = null
   private view: EditorView | null = null
+  /** 所有标签共用同一份插件数组，查找高亮插件也在其中 */
+  private plugins: readonly Plugin[] | null = null
 
   constructor(private crepe: Crepe) {}
 
@@ -59,13 +63,23 @@ export class TabStore {
   createStateFromMarkdown(markdown: string): EditorState {
     const schema = this.ctx.get(schemaCtx)
     const parser = this.ctx.get(parserCtx)
-    const base = this.ctx.get(editorStateCtx)
     const doc = parser(markdown || '')
     return PSState.create({
       schema,
-      plugins: base.plugins,
+      plugins: this.getPlugins(),
       doc,
     })
+  }
+
+  /**
+   * 多份 state 必须共用同一个 plugins 数组：
+   * prosemirror-view 只在数组引用变化时才销毁重建插件视图（TopBar 的 Vue 实例）。
+   */
+  private getPlugins(): readonly Plugin[] {
+    if (!this.plugins) {
+      this.plugins = [...this.ctx.get(editorStateCtx).plugins, searchPlugin]
+    }
+    return this.plugins
   }
 
   /** 空文档 */

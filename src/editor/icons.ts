@@ -37,3 +37,15 @@ export const CODE_BLOCK_ICON = wrap(
 export const CLEAR_FORMAT_ICON = wrap(
   '<path d="M4.2 19.2h9.4"/><path d="M8.6 15.6 12.3 5.4a1.5 1.5 0 0 1 2.8 0l1 2.6"/><path d="M4.6 4.6 19.4 19.4"/>',
 )
+
+export const IMAGE_ICON = wrap(
+  '<rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2.2"/><circle cx="8.6" cy="9.6" r="1.4"/><path d="m4.6 16.9 4.2-4.2 3.2 3.2 2.4-2.4 4.2 4.1"/>',
+)
+
+export const TABLE_ICON = wrap(
+  '<rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2.2"/><path d="M3.2 9.6h17.6"/><path d="M3.2 14.4h17.6"/><path d="M9.6 4.8v14.4"/><path d="M15 4.8v14.4"/>',
+)
+
+export const HR_ICON = wrap(
+  '<path d="M4 12h4.2"/><path d="M9.9 12h4.2"/><path d="M15.8 12H20"/>',
+)

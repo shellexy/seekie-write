@@ -25,6 +25,7 @@ import {
 import {
   toggleStrikethroughCommand,
   strikethroughSchema,
+  tableSchema,
 } from '@milkdown/kit/preset/gfm'
 import { lift, setBlockType } from '@milkdown/kit/prose/commands'
 import { liftListItem } from '@milkdown/kit/prose/schema-list'
@@ -40,7 +41,11 @@ import {
   QUOTE_ICON,
   CODE_BLOCK_ICON,
   CLEAR_FORMAT_ICON,
+  IMAGE_ICON,
+  TABLE_ICON,
+  HR_ICON,
 } from './icons'
+import { insertHr, insertImageFromPicker, insertTable } from './insert'
 
 /**
  * Crepe 顶部工具栏（TopBar）定制。
@@ -187,10 +192,29 @@ export const TOOLBAR_LABELS: Record<string, string> = {
   code: '行内代码',
   'bullet-list': '项目符号列表',
   'ordered-list': '有序列表',
+  image: '插入图片',
+  table: '插入表格',
+  hr: '插入分割线',
   quote: '引用',
   'code-block': '代码块',
   'clear-format': '清除格式（Ctrl+\\）',
 }
+
+/** 与 buildTopBar 里 addItem 的顺序严格一致（不含 heading selector） */
+const BUTTON_LABEL_ORDER = [
+  'bold',
+  'italic',
+  'strike',
+  'code',
+  'bullet-list',
+  'ordered-list',
+  'image',
+  'table',
+  'hr',
+  'quote',
+  'code-block',
+  'clear-format',
+]
 
 type Builder = Parameters<NonNullable<TopBarFeatureConfig['buildTopBar']>>[0]
 
@@ -241,9 +265,9 @@ export function buildTopBar(builder: Builder): void {
     onRun: (ctx: Ctx) => ctx.get(commandsCtx).call(toggleInlineCodeCommand.key),
   })
 
-  // 列表 / 引用 / 代码块
-  const blocks = builder.addGroup('blocks', '块')
-  blocks.addItem('bullet-list', {
+  // 列表
+  const lists = builder.addGroup('lists', '列表')
+  lists.addItem('bullet-list', {
     icon: BULLET_LIST_ICON,
     active: (ctx: Ctx) => isBlockActive(ctx, bulletListSchema.type(ctx)),
     onRun: (ctx: Ctx) =>
@@ -251,7 +275,7 @@ export function buildTopBar(builder: Builder): void {
         nodeType: bulletListSchema.type(ctx),
       }),
   })
-  blocks.addItem('ordered-list', {
+  lists.addItem('ordered-list', {
     icon: ORDERED_LIST_ICON,
     active: (ctx: Ctx) => isBlockActive(ctx, orderedListSchema.type(ctx)),
     onRun: (ctx: Ctx) =>
@@ -259,7 +283,25 @@ export function buildTopBar(builder: Builder): void {
         nodeType: orderedListSchema.type(ctx),
       }),
   })
-  blocks.addItem('quote', {
+
+  // 插入：图片 / 表格 / 分割线 / 引用 / 代码块
+  const insert = builder.addGroup('insert', '插入')
+  insert.addItem('image', {
+    icon: IMAGE_ICON,
+    active: () => false,
+    onRun: insertImageFromPicker,
+  })
+  insert.addItem('table', {
+    icon: TABLE_ICON,
+    active: (ctx: Ctx) => isBlockActive(ctx, tableSchema.type(ctx)),
+    onRun: insertTable,
+  })
+  insert.addItem('hr', {
+    icon: HR_ICON,
+    active: () => false,
+    onRun: insertHr,
+  })
+  insert.addItem('quote', {
     icon: QUOTE_ICON,
     active: (ctx: Ctx) => isBlockActive(ctx, blockquoteSchema.type(ctx)),
     onRun: (ctx: Ctx) =>
@@ -267,7 +309,7 @@ export function buildTopBar(builder: Builder): void {
         nodeType: blockquoteSchema.type(ctx),
       }),
   })
-  blocks.addItem('code-block', {
+  insert.addItem('code-block', {
     icon: CODE_BLOCK_ICON,
     active: (ctx: Ctx) => isBlockActive(ctx, codeBlockSchema.type(ctx)),
     onRun: (ctx: Ctx) =>
@@ -293,7 +335,7 @@ let observer: MutationObserver | null = null
 export function installTopBarTooltips(root: HTMLElement): void {
   // Crepe 渲染的按钮不带 key，只能按 DOM 顺序对应；
   // 标题下拉是独立的 .top-bar-heading-button，所以按钮列表要跳过第一条标签
-  const order = Object.values(TOOLBAR_LABELS).slice(1)
+  const order = BUTTON_LABEL_ORDER.map((key) => TOOLBAR_LABELS[key])
   const decorate = () => {
     root.querySelectorAll<HTMLButtonElement>('.milkdown-top-bar .top-bar-item').forEach((btn, i) => {
       const label = order[i]

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { AppSettings, DocAsset, MenuCommandPayload, SaveUiStatus } from '@shared/types'
+import { DEFAULT_SETTINGS } from '@shared/defaults'
 import { api } from '../lib/api'
 
 export type SidebarMode = 'outline' | 'files' | 'backlinks'
@@ -57,12 +58,7 @@ export const useApp = create<AppState>((set, get) => ({
   tabs: [],
   activeId: null,
   settings: {
-    imageMode: 'relative',
-    autoSaveDelay: 800,
-    theme: 'system',
-    sidebarVisible: true,
-    sidebarWidth: 240,
-    fontScale: 1,
+    ...DEFAULT_SETTINGS,
   },
   wordCount: 0,
   selCount: 0,

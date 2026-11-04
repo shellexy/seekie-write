@@ -1,9 +1,9 @@
 import { useApp } from '../store/app'
-import { formatNumber, readingMinutes } from '../lib/wordcount'
+import { formatNumber } from '../lib/wordcount'
 import { IconWarning } from './Icons'
 
 /**
- * 大纲底部的信息区：字数 / 选中字数 / 保存状态 / 冲突操作 / 图片策略 / 缩放 / 路径。
+ * 大纲底部的信息区：字数 / 选中字数 / 保存状态 / 冲突操作 / 图片策略 / 缩放。
  * 取代原先占据整个窗口底部的状态栏，把高度还给正文。
  */
 export function SidebarFooter({
@@ -42,16 +42,15 @@ export function SidebarFooter({
 
   return (
     <footer className="sidebar-footer">
-      <div className="sf__count">
+      <div className="sf__count" title="字数 / 选中 / 字符数 / 段落数">
         <b>{formatNumber(wordCount)}</b>
         <span>字</span>
         {selCount > 0 && (
           <span className="sf__sel">· 选中 {formatNumber(selCount)}</span>
         )}
-      </div>
-      <div className="sf__detail">
-        字符 {formatNumber(charset.chars)} · 段落 {formatNumber(charset.paragraphs)} ·
-        阅读 {readingMinutes(wordCount)}
+        <span className="sf__detail">
+          · {formatNumber(charset.chars)} 字符 · {formatNumber(charset.paragraphs)} 段
+        </span>
       </div>
 
       <div className="sf__row">{status}</div>
@@ -73,16 +72,6 @@ export function SidebarFooter({
         </button>
         <span>{Math.round(zoom * 100)}%</span>
       </div>
-
-      <div className="sf__path" title={active?.savePath ?? '尚未保存到磁盘'}>
-        {active?.savePath ? shorten(active.savePath) : '未保存到磁盘'}
-      </div>
     </footer>
   )
-}
-
-function shorten(path: string): string {
-  const parts = path.split(/[\\/]/)
-  if (parts.length <= 3) return path
-  return `…/${parts.slice(-2).join('/')}`
 }

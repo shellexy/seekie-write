@@ -9,18 +9,12 @@ import type {
   SessionState,
   WindowStatePayload,
 } from '@shared/types'
+import { DEFAULT_SETTINGS } from '@shared/defaults'
 
 /** 浏览器里跑（vite dev 直接用 Chrome 打开）时的兜底实现，方便只调前端 */
 const isElectron = typeof window !== 'undefined' && 'seekie' in window
 
-const mockSettings: AppSettings = {
-  imageMode: 'relative',
-  autoSaveDelay: 800,
-  theme: 'system',
-  sidebarVisible: true,
-  sidebarWidth: 240,
-  fontScale: 1,
-}
+const mockSettings: AppSettings = { ...DEFAULT_SETTINGS }
 
 const noop = () => {}
 const unsub = () => noop
@@ -85,6 +79,7 @@ const mock = {
   },
   app: {
     onOpenFile: (_cb: (p: string) => void) => unsub(),
+    takeStartupFile: async () => null,
     toggleDevTools: async () => {},
     onBeforeClose: (_cb: () => void | Promise<void>) => unsub(),
     onDragDropFile: (_cb: (paths: string[]) => void) => unsub(),
@@ -128,6 +123,7 @@ export interface SeekieApi {
   }
   app: {
     onOpenFile: (cb: (path: string) => void) => () => void
+    takeStartupFile: () => Promise<string | null>
     toggleDevTools: () => Promise<void>
     onBeforeClose: (cb: () => void | Promise<void>) => () => void
     onDragDropFile: (cb: (paths: string[]) => void) => () => void

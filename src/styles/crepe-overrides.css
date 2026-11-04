@@ -35,8 +35,10 @@
 
 .milkdown .milkdown-top-bar .top-bar-inner {
   gap: 2px;
+  row-gap: 2px;
   min-height: var(--topbar-h);
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .milkdown .milkdown-top-bar .top-bar-item {
@@ -102,16 +104,26 @@
   background: var(--accent-soft);
 }
 
-/* 正文区：Typora 式的窄栏排版 */
+/* 正文区：Typora 式的窄栏排版（宽度 / 字号由设置面板的 CSS 变量控制） */
 .milkdown .ProseMirror {
-  max-width: 760px;
+  max-width: var(--content-width, 760px);
   margin: 0 auto;
   padding: 28px 40px 40vh;
   outline: none;
-  font-size: 16px;
+  font-size: var(--editor-font-size, 16px);
   line-height: 1.78;
   color: var(--fg);
   caret-color: var(--accent);
+}
+
+/* 查找高亮：焦点在查找框里时也能看见命中项 */
+.milkdown .seekie-find-match {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 2px;
+}
+.milkdown .seekie-find-match.is-current {
+  background: var(--accent);
+  color: #fff;
 }
 
 .milkdown .ProseMirror h1,

@@ -66,6 +66,8 @@ const api = {
       ipcRenderer.on(IPC.openFileRequest, listener)
       return () => ipcRenderer.off(IPC.openFileRequest, listener)
     },
+    /** 渲染层就绪后取启动参数里的文件（拉取模式，避免事件早于订阅丢失） */
+    takeStartupFile: (): Promise<string | null> => ipcRenderer.invoke(IPC.takeStartupFile),
     toggleDevTools: () => ipcRenderer.invoke('app:toggle-dev-tools'),
     /** 主进程要关窗口时通知渲染层先落盘 */
     onBeforeClose: (cb: () => void | Promise<void>) => {
