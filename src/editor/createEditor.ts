@@ -4,7 +4,7 @@ import '@milkdown/crepe/theme/common/style.css'
 /**
 import '@milkdown/crepe/theme/classic.css'
 **/
-import "@milkdown/crepe/theme/frame.css";
+import "@milkdown/crepe/theme/nord.css";
 import './crepe-dark.css'
 import { crepeFeatures, buildTopBar } from './topBarConfig'
 import { putAsset } from '../lib/assets'

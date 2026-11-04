@@ -9,7 +9,7 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron'
 import { join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type {
   AppSettings,
@@ -58,7 +58,13 @@ if (!gotLock) {
 function pickFileFromArgv(argv: string[]): string | null {
   const candidates = argv.slice(1).filter((arg) => !arg.startsWith('-') && !arg.includes('electron'))
   for (const candidate of candidates.reverse()) {
-    if (existsSync(candidate) && !candidate.endsWith('.asar')) return candidate
+    try {
+      // 只接受普通文件：开发模式 electron-vite 会用 `.` 作为入口参数，
+      // 目录不能当成待打开文档，否则会弹“暂不支持该格式（无扩展名）”。
+      if (statSync(candidate).isFile() && !candidate.endsWith('.asar')) return candidate
+    } catch {
+      /* 参数不是有效路径，跳过 */
+    }
   }
   return null
 }
