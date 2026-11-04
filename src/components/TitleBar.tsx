@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { useApp } from '../store/app'
 import { api } from '../lib/api'
 import { formatNumber } from '../lib/wordcount'
@@ -32,6 +32,8 @@ export interface TitleBarActions {
   onSettings: () => void
   onActivateTab: (id: string) => void
   onCloseTab: (id: string) => void
+  onCloseOtherTabs: (id: string) => void
+  onCloseRightTabs: (id: string) => void
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
@@ -48,6 +50,7 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
   const [showDetail, setShowDetail] = useState(false)
   const [tabsOverflow, setTabsOverflow] = useState(false)
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
+  const [tabContext, setTabContext] = useState<{ tabId: string; x: number; y: number } | null>(null)
   const tabStripRef = useRef<HTMLDivElement>(null)
 
   // 标签条用满剩余宽度；放不下时在右侧显示“全部标签”下拉
@@ -92,6 +95,42 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
   }, [])
 
   const active = tabs.find((t) => t.id === activeId)
+  const contextTab = tabContext ? (tabs.find((tab) => tab.id === tabContext.tabId) ?? null) : null
+  const contextIndex = contextTab ? tabs.findIndex((tab) => tab.id === contextTab.id) : -1
+  const contextPath = contextTab ? (contextTab.savePath ?? contextTab.sourcePath) : null
+
+  useEffect(() => {
+    if (!tabContext) return
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('.tab-context')) {
+        setTabContext(null)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTabContext(null)
+    }
+    const onBlur = () => setTabContext(null)
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [tabContext])
+
+  const openTabContext = (event: ReactMouseEvent, tabId: string) => {
+    event.preventDefault()
+    event.stopPropagation()
+    actions.onActivateTab(tabId)
+    const menuWidth = 200
+    setTabContext({
+      tabId,
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
+      y: event.clientY,
+    })
+  }
 
   useEffect(() => {
     const name = active ? active.title : 'seekie-write'
@@ -143,17 +182,6 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
           </button>
         </div>
 
-        <span className="vr" />
-
-        <button
-          className="icon-btn"
-          onClick={actions.onSettings}
-          title="设置（Ctrl+,）"
-          aria-label="设置"
-        >
-          <IconSettings />
-        </button>
-
         {tabs.length > 0 && (
           <>
             <span className="vr" />
@@ -174,6 +202,7 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
                       actions.onActivateTab(tab.id)
                     }
                   }}
+                  onContextMenu={(e) => openTabContext(e, tab.id)}
                   title={tabTitle(tab)}
                 >
                   <span className="tab__label">{tab.title}</span>
@@ -266,6 +295,14 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
         >
           <IconReplace />
         </button>
+        <button
+          className="icon-btn"
+          onClick={actions.onSettings}
+          title="设置（Ctrl+,）"
+          aria-label="设置"
+        >
+          <IconSettings />
+        </button>
       </div>
 
       {!sidebarVisible && (
@@ -319,6 +356,66 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
             aria-label="关闭"
           >
             <IconClose />
+          </button>
+        </div>
+      )}
+
+      {contextTab && tabContext && (
+        <div
+          className="tab-context no-drag"
+          style={{ left: tabContext.x, top: tabContext.y }}
+          role="menu"
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <button
+            className="tab-context__item"
+            onClick={() => {
+              actions.onCloseTab(contextTab.id)
+              setTabContext(null)
+            }}
+          >
+            关闭标签
+          </button>
+          <button
+            className="tab-context__item"
+            disabled={tabs.length <= 1}
+            onClick={() => {
+              actions.onCloseOtherTabs(contextTab.id)
+              setTabContext(null)
+            }}
+          >
+            关闭其他标签
+          </button>
+          <button
+            className="tab-context__item"
+            disabled={contextIndex >= tabs.length - 1}
+            onClick={() => {
+              actions.onCloseRightTabs(contextTab.id)
+              setTabContext(null)
+            }}
+          >
+            关闭右侧标签
+          </button>
+          <div className="tab-context__sep" />
+          <button
+            className="tab-context__item"
+            disabled={!contextPath}
+            onClick={() => {
+              if (contextPath) void api.clipboard.write({ text: contextPath })
+              setTabContext(null)
+            }}
+          >
+            复制文件路径
+          </button>
+          <button
+            className="tab-context__item"
+            disabled={!contextPath}
+            onClick={() => {
+              if (contextPath) void api.file.reveal(contextPath)
+              setTabContext(null)
+            }}
+          >
+            在文件夹中显示
           </button>
         </div>
       )}

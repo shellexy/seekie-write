@@ -10,7 +10,7 @@ import {
   shell,
   type MenuItemConstructorOptions,
 } from 'electron'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type {
@@ -176,7 +176,6 @@ function createWindow(): void {
       { label: '重做', click: send('edit:redo') },
       { type: 'separator' },
       { label: '剪切', role: 'cut', enabled: params.editFlags.canCut },
-      { label: '复制', role: 'copy', enabled: params.editFlags.canCopy },
       { label: '复制选中（纯文本）', enabled: hasSelection, click: () => void clipboard.writeText(params.selectionText) },
       { label: '复制选中（Markdown）', enabled: hasSelection, click: send('clipboard:copy-markdown') },
       { label: '复制选中（富文本）', enabled: hasSelection, click: send('clipboard:copy-html') },
@@ -338,7 +337,8 @@ function registerIpc(): void {
     return true
   })
   ipcMain.handle(IPC.fileReadMarkdown, async (_e, path: string, tabId: string) => {
-    const result = await openDocument(path, tabId)
+    // 统一成绝对路径：标签的 savePath 会用于冲突检测、复制路径、在文件夹中显示
+    const result = await openDocument(resolve(path), tabId)
     // 转换出来的内嵌图片先进内存仓库（按标签隔离），渲染进程随后即可通过 seekie-asset:// 显示
     if (result.ok && result.assets.length) assetStore.putMany(tabId, result.assets)
     return result

@@ -426,6 +426,75 @@ export default function App() {
     [activate, flushTimer, newTab, saveDraftIfNeeded],
   )
 
+  /** 批量关闭（关闭其他 / 关闭右侧共用）：有未保存改动时统一确认一次 */
+  const closeManyTabs = useCallback(
+    (ids: string[]) => {
+      const targets = useApp.getState().tabs.filter((tab) => ids.includes(tab.id))
+      if (!targets.length) return
+      const dirtyCount = targets.filter((tab) => tab.dirty).length
+
+      const closeNow = () => {
+        for (const tab of targets) {
+          flushTimer(tab.id)
+          pendingSaves.current.delete(tab.id)
+          tabStoreRef.current?.drop(tab.id)
+          useApp.getState().removeTab(tab.id)
+          void api.asset.drop(tab.id)
+          void api.draft.drop(tab.id)
+        }
+        const rest = useApp.getState().tabs
+        if (rest.length === 0) {
+          newTab()
+        } else if (!rest.some((tab) => tab.id === useApp.getState().activeId)) {
+          activate(rest[rest.length - 1].id)
+        }
+      }
+
+      if (dirtyCount > 0) {
+        setConfirmState({
+          open: true,
+          title: '关闭这些标签？',
+          message: (
+            <>
+              其中 <b>{dirtyCount}</b> 个标签有未保存的改动，关闭后会丢弃。
+            </>
+          ),
+          confirmText: '关闭并丢弃',
+          danger: true,
+          onConfirm: () => {
+            setConfirmState((c) => ({ ...c, open: false }))
+            closeNow()
+          },
+        })
+        return
+      }
+      closeNow()
+    },
+    [activate, flushTimer, newTab],
+  )
+
+  const closeOtherTabs = useCallback(
+    (id: string) => {
+      activate(id)
+      const ids = useApp
+        .getState()
+        .tabs.filter((tab) => tab.id !== id)
+        .map((tab) => tab.id)
+      closeManyTabs(ids)
+    },
+    [activate, closeManyTabs],
+  )
+
+  const closeRightTabs = useCallback(
+    (id: string) => {
+      const tabs = useApp.getState().tabs
+      const index = tabs.findIndex((tab) => tab.id === id)
+      if (index < 0) return
+      closeManyTabs(tabs.slice(index + 1).map((tab) => tab.id))
+    },
+    [closeManyTabs],
+  )
+
   /* ----------------------------- 打开文件 ----------------------------- */
 
   const openPath = useCallback(
@@ -747,6 +816,8 @@ export default function App() {
           onSettings: () => setSettingsOpen(true),
           onActivateTab: activate,
           onCloseTab: closeTab,
+          onCloseOtherTabs: closeOtherTabs,
+          onCloseRightTabs: closeRightTabs,
         }}
       />
 
