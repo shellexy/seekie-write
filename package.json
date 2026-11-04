@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@firecrawl/anydoc": "0.2.4",
-    "@milkdown/crepe": "^7.5.9",
+    "@milkdown/crepe": "7.23.0",
     "@milkdown/kit": "7.23.0",
     "electron-updater": "^6.3.9"
   },

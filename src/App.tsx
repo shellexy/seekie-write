@@ -19,7 +19,7 @@ import { activeOutlineId, type OutlineItem } from './lib/outline'
 import { TitleBar } from './components/TitleBar'
 import { Outline } from './components/Outline'
 import { EditorPane } from './components/EditorPane'
-import { StatusBar } from './components/StatusBar'
+import { SidebarFooter } from './components/SidebarFooter'
 import { Toast, ConvertingOverlay, ConfirmDialog, ImageModeDialog } from './components/Overlays'
 
 const BLANK_DOC = '# 未命名\n\n'
@@ -70,6 +70,24 @@ export default function App() {
     }
   }, [])
 
+  /** 无路径的标签：写草稿区，保证退出不丢内容 */
+  const saveDraftIfNeeded = useCallback(async (id: string) => {
+    const store = tabStoreRef.current
+    const tab = tabById(id)
+    if (!store || !tab || tab.savePath) return
+    const markdown = store.markdownOf(id)
+    if (!markdown.trim()) return
+    await api.draft.save({
+      tabId: id,
+      markdown,
+      title: tab.title,
+      sourcePath: tab.sourcePath,
+      sourceExt: tab.sourceExt,
+      savePath: tab.savePath,
+      savedAt: Date.now(),
+    })
+  }, [])
+
   /* ----------------------------- 保存 ----------------------------- */
 
   const doSave = useCallback(
@@ -83,6 +101,14 @@ export default function App() {
       const tab = tabById(id)
       if (!store || !tab) return
       flushTimer(id)
+
+      // 没有落盘路径（新建 / 转换后未另存）时，自动保存只写草稿区，
+      // 绝不弹“另存为”对话框打断输入。
+      if (!tab.savePath && kind === 'auto') {
+        await saveDraftIfNeeded(id)
+        patchTab(id, { dirty: false, saveStatus: 'idle', saveMessage: undefined })
+        return
+      }
 
       const markdown = store.markdownOf(id)
       patchTab(id, { saveStatus: 'saving' })
@@ -124,7 +150,7 @@ export default function App() {
         notify(result.message ?? '保存失败', 'error')
       }
     },
-    [flushTimer, notify, patchTab],
+    [flushTimer, notify, patchTab, saveDraftIfNeeded],
   )
 
   const scheduleAutosave = useCallback(
@@ -152,24 +178,6 @@ export default function App() {
     scheduleAutosave(id)
   }, [patchTab, scheduleAutosave])
 
-  /** 无路径的标签：写草稿区，保证退出不丢内容 */
-  const saveDraftIfNeeded = useCallback(async (id: string) => {
-    const store = tabStoreRef.current
-    const tab = tabById(id)
-    if (!store || !tab || tab.savePath) return
-    const markdown = store.markdownOf(id)
-    if (!markdown.trim()) return
-    await api.draft.save({
-      tabId: id,
-      markdown,
-      title: tab.title,
-      sourcePath: tab.sourcePath,
-      sourceExt: tab.sourceExt,
-      savePath: tab.savePath,
-      savedAt: Date.now(),
-    })
-  }, [])
-
   const saveActive = useCallback(
     (kind: 'manual' | 'saveAs' = 'manual') => {
       const id = useApp.getState().activeId
@@ -185,10 +193,10 @@ export default function App() {
     const store = tabStoreRef.current
     if (!store) return
     const session = await api.draft.loadSession()
-    const current = useApp.getState()
 
     if (session.tabs.length === 0) {
-      if (current.tabs.length === 0) newTabRef.current?.()
+      // 取最新状态：等待 loadSession 期间可能已经通过启动参数打开了文件
+      if (useApp.getState().tabs.length === 0) newTabRef.current?.()
       return
     }
 
@@ -334,6 +342,8 @@ export default function App() {
           tabStoreRef.current?.drop(id)
           useApp.getState().removeTab(id)
           void api.asset.drop(id)
+          // 关闭标签不应在会话里留下草稿，否则下次启动会把它“复活”
+          void api.draft.drop(id)
           const rest = useApp.getState().tabs
           if (rest.length === 0) {
             newTab()
@@ -388,6 +398,22 @@ export default function App() {
           notify(result.error ?? '打开失败', 'error')
           return
         }
+        // 新建后没动过的空白标签：打开文件时直接替换掉，
+        // 避免启动参数打开文件时 restoreSession 与 openPath 竞争多出一个空标签。
+        const existing = useApp.getState().tabs
+        if (
+          existing.length === 1 &&
+          !existing[0].savePath &&
+          !existing[0].sourcePath &&
+          !existing[0].dirty
+        ) {
+          const blankId = existing[0].id
+          flushTimer(blankId)
+          store.drop(blankId)
+          useApp.getState().removeTab(blankId)
+          void api.asset.drop(blankId)
+          void api.draft.drop(blankId)
+        }
         store.register(id, store.createStateFromMarkdown(result.markdown))
         useApp.getState().upsertTab({
           id,
@@ -420,7 +446,7 @@ export default function App() {
         setConverting(false)
       }
     },
-    [activate, notify, setConverting],
+    [activate, flushTimer, notify, setConverting],
   )
 
   /* ----------------------------- 菜单命令 ----------------------------- */
@@ -622,6 +648,19 @@ export default function App() {
               const ctx = ctxRef.current
               if (ctx) selectRange(ctx, item.pos, item.end)
             }}
+            footer={
+              <SidebarFooter
+                onReload={() =>
+                  active && void openPath(active.sourcePath ?? active.savePath ?? '')
+                }
+                onKeepMine={() => {
+                  if (!active) return
+                  patchTab(active.id, { conflict: false })
+                  void doSave(active.id, 'manual', undefined, true)
+                }}
+                onChooseImageMode={() => setImageDialog({ open: true, pendingSave: false })}
+              />
+            }
           />
         )}
 
@@ -629,16 +668,6 @@ export default function App() {
           <EditorPane onReady={bootEditor} />
         </div>
       </div>
-
-      <StatusBar
-        onReload={() => active && void openPath(active.sourcePath ?? active.savePath ?? '')}
-        onKeepMine={() => {
-          if (!active) return
-          patchTab(active.id, { conflict: false })
-          void doSave(active.id, 'manual', undefined, true)
-        }}
-        onChooseImageMode={() => setImageDialog({ open: true, pendingSave: false })}
-      />
 
       <ImageModeDialog
         open={imageDialog.open}

@@ -221,7 +221,7 @@ function buildMenu(): void {
     {
       label: '视图',
       submenu: [
-        { label: '切换侧栏', accelerator: 'CmdOrCtrl+B', click: send('view:toggle-sidebar') },
+        { label: '切换侧栏', accelerator: 'CmdOrCtrl+Shift+B', click: send('view:toggle-sidebar') },
         { type: 'separator' },
         { label: '重新载入', accelerator: 'CmdOrCtrl+R', click: send('view:reload-tab') },
         { label: '放大', accelerator: 'CmdOrCtrl+=', click: send('view:zoom-in') },

@@ -10,9 +10,10 @@
 - **所见即所得编辑**：Milkdown Crepe 内核，表格 / 代码块（CodeMirror）/ 公式（KaTeX）/ 任务列表 / 图片块齐全
 - **顶部工具栏**：Crepe TopBar（默认关闭的特性，这里显式打开），纯图标 + tooltip，分组为
   `段落·标题一~六` │ `粗体 斜体 删除线 行内代码` │ `项目符号 有序列表 引用 代码块` │ `清除格式`
-- **自定义标题栏**（Linux 优先，`frame:false`）：新建 / 打开 / 保存、标签条、字数统计、自绘窗口三键
+- **自定义标题栏**（Linux 优先，`frame:false`）：新建 / 打开 / 保存、标签条、自绘窗口三键
+- **大纲底部信息区**：字数 / 选中字数 / 字符数 / 段落数 / 阅读时长 / 保存状态 / 图片策略 / 缩放 / 路径都收在大纲侧栏底部，不再占用窗口底部的整条状态栏，正文能多显示一行
 - **多标签页**：一个 ProseMirror view + 多份 EditorState，切标签保留撤销栈、选区、滚动位置
-- **自动保存**：800ms debounce；没有落盘路径的标签写进草稿区，关窗口重开能恢复
+- **自动保存**：800ms debounce；没有落盘路径的标签只写草稿区（不会弹另存为），关窗口重开能恢复
 - **冲突检测**：磁盘文件被外部改过就暂停自动保存并提示，绝不静默覆盖
 - **打开非 Markdown 文档**：`@firecrawl/anydoc` 本地转换（Word / PPT / Excel / OpenDocument / RTF / EPUB / CSV / PDF）
 - **另存命名**：`季度报告.docx` → `季度报告.docx.md`（保留原扩展名，不覆盖源文件）
@@ -48,7 +49,7 @@ Wayland 会话下若拖拽区失效，用 `--ozone-platform=wayland` 启动；X1
 | 撤销 / 重做 | `Ctrl+Z` / `Ctrl+Shift+Z` |
 | 段落 / 标题一 / 二 / 三 | `Ctrl+0` / `Ctrl+1` / `Ctrl+2` / `Ctrl+3` |
 | 清除格式 | `Ctrl+\` |
-| 切换侧栏 | `Ctrl+B` |
+| 切换侧栏 | `Ctrl+Shift+B` |
 | 缩放 | `Ctrl+=` / `Ctrl+-` / `Ctrl+Shift+0` |
 
 ## 目录结构
@@ -71,7 +72,7 @@ src/
     tabs.ts            单 view 多 state 的 TabStore
     session.ts         大纲 / 字数 / 选区统计（节流 120ms）
     icons.ts           工具栏描边图标
-  components/          TitleBar / Outline / StatusBar / Overlays
+  components/          TitleBar / Outline / SidebarFooter / Overlays
 shared/types.ts        main 与 renderer 共享类型
 samples/               测试用的 .docx / .md
 ```
@@ -100,3 +101,6 @@ samples/               测试用的 .docx / .md
 | 外部改文件 → 冲突检测 | ✅ 暂停自动保存 + 标签红框 + "重新载入 / 保留我的版本" |
 | 关窗口前落盘草稿 | ✅ 写入 `userData/session.json` + `drafts/<tab>.md` |
 | 深色主题 | ✅ 标题栏 / 大纲 / 编辑器 / 代码块同步切换 |
+| 大纲底部信息区 | ✅ 字数 / 字符 / 段落 / 阅读时长 / 保存状态 / 图片策略 / 缩放 / 路径，无底部横向状态栏 |
+| 无路径标签自动保存 | ✅ 800ms 后写草稿区，不弹“另存为”；关闭标签会清理草稿 |
+| 启动参数打开文件 | ✅ 只保留一个标签，不再多出空白标签 |

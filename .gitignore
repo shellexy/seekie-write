@@ -1,7 +1,11 @@
-node_modules
-out
-dist
-release
+node_modules/
+dist/
+dist-electron/
 *.log
-tsconfig.*.tsbuildinfo
-*.tsbuildinfo
+.env*
+!.env.example
+.playwright/
+out
+seekie-debug/
+*.swp
+release/

@@ -52,7 +52,7 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
         <button
           className={`icon-btn${sidebarVisible ? ' is-on' : ''}`}
           onClick={toggleSidebar}
-          title="显示/隐藏大纲栏（Ctrl+B）"
+          title="显示/隐藏大纲栏（Ctrl+Shift+B）"
           aria-label="切换侧栏"
         >
           <IconSidebar />
@@ -126,29 +126,31 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
       {/* 拖拽区：填充剩余空间 */}
       <div className="titlebar__drag" />
 
-      <div
-        className="titlebar__count no-drag"
-        onMouseEnter={() => setShowDetail(true)}
-        onMouseLeave={() => setShowDetail(false)}
-        title="全文 / 选中字数"
-      >
-        <span className="count-main">
-          字数 {formatNumber(wordCount)}
-          {selCount > 0 && <span className="count-sel"> · 选中 {formatNumber(selCount)}</span>}
-        </span>
-        {showDetail && (
-          <div className="count-pop">
-            <div>
-              <span>字符数（不含换行）</span>
-              <b>{formatNumber(charset.chars)}</b>
+      {!sidebarVisible && (
+        <div
+          className="titlebar__count no-drag"
+          onMouseEnter={() => setShowDetail(true)}
+          onMouseLeave={() => setShowDetail(false)}
+          title="全文 / 选中字数"
+        >
+          <span className="count-main">
+            字数 {formatNumber(wordCount)}
+            {selCount > 0 && <span className="count-sel"> · 选中 {formatNumber(selCount)}</span>}
+          </span>
+          {showDetail && (
+            <div className="count-pop">
+              <div>
+                <span>字符数（不含换行）</span>
+                <b>{formatNumber(charset.chars)}</b>
+              </div>
+              <div>
+                <span>段落数</span>
+                <b>{formatNumber(charset.paragraphs)}</b>
+              </div>
             </div>
-            <div>
-              <span>段落数</span>
-              <b>{formatNumber(charset.paragraphs)}</b>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {!isMac && (
         <div className="window-controls no-drag">
