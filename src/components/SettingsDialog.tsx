@@ -124,6 +124,22 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
               <b className="settings__value">{settings.fontSize}px</b>
             </label>
           </section>
+
+          <section className="settings__group">
+            <h4>打开文档</h4>
+            <label className="settings__row">
+              <span>图片内嵌为 base64</span>
+              <input
+                type="checkbox"
+                checked={settings.openInlineImages}
+                onChange={(e) => patch({ openInlineImages: e.target.checked })}
+              />
+            </label>
+            <p className="settings__hint">
+              打开 Word / PPT / Excel 等文档时，把内嵌图片直接写成 data URI；文档自包含，但体积约增加
+              33%，保存时保持内嵌。PDF 无法提取内嵌图片。
+            </p>
+          </section>
         </div>
 
         <div className="dialog__actions">
@@ -140,6 +156,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 autoSaveDelay: DEFAULT_SETTINGS.autoSaveDelay,
                 sidebarVisible: DEFAULT_SETTINGS.sidebarVisible,
                 sidebarWidth: DEFAULT_SETTINGS.sidebarWidth,
+                openInlineImages: DEFAULT_SETTINGS.openInlineImages,
               })
             }
           >

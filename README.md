@@ -16,14 +16,14 @@
 - **对话框记忆**：打开 / 保存对话框默认回到上次所在目录
 - **大纲底部信息区**：字数 / 选中 / 字符 / 段落 / 保存状态 / 图片策略 / 缩放都收在大纲侧栏底部，不占窗口底部的横向空间
 - **查找替换**：`Ctrl+F` / `Ctrl+H`，命中项用 ProseMirror Decoration 高亮，支持上一个/下一个、区分大小写、全部替换
-- **设置面板**：外观（跟随系统 / 浅色 / 深色）、Crepe 主题（跟随应用 / Frame / Classic / Nord）、正文宽度、字体与字号；改完立即生效并持久化
+- **设置面板**：外观（跟随系统 / 浅色 / 深色）、Crepe 主题（跟随应用 / Frame / Classic / Nord）、正文宽度、字体与字号、打开文档时是否把内嵌图片转成 base64；改完立即生效并持久化
 - **正文右键菜单**：撤销 / 重做、剪切 / 粘贴、全选、插入图片 / 表格 / 分割线、清除格式、查找 / 替换；选中文字后可复制为纯文本 / Markdown / 富文本
 - **可调宽大纲**：拖动右侧分隔条 170–420px，双击恢复 240px，宽度写入设置
 - **窄窗口适配**：编辑区变窄时，Crepe 左侧的 +/拖动控件会自动让位，不会被裁到可视范围外
 - **多标签页**：一个 ProseMirror view + 多份 EditorState，切标签保留撤销栈、选区、滚动位置
 - **自动保存**：800ms debounce；没有落盘路径的标签只写草稿区（不会弹另存为），关窗口重开能恢复
 - **冲突检测**：同一标签保存串行化，mtime 基线随保存结果直接带回，避免自己的自动保存误报；真正的外部修改仍会暂停并提示
-- **打开非 Markdown 文档**：`@firecrawl/anydoc` 本地转换（Word / PPT / Excel / OpenDocument / RTF / EPUB / CSV / PDF）
+- **打开非 Markdown 文档**：`@firecrawl/anydoc` 本地转换（Word / PPT / Excel / OpenDocument / RTF / EPUB / CSV / PDF）；可选把内嵌图片直接转成 base64 data URI，打开即自包含
 - **另存命名**：`季度报告.docx` → `季度报告.docx.md`（保留原扩展名，不覆盖源文件）
 - **图片两种保存策略**：内联 base64 / 相对路径（`文档名.assets/`）
 - **大纲侧栏**：单击滚动到标题（自动避开 sticky TopBar），**双击选中整章**（大纲底部的"选中字数"立刻变成该章字数）
@@ -95,6 +95,7 @@ samples/               测试用的 .docx / .md
 ## 已知限制
 
 - **PDF 转换拿不到内嵌图片**：anydoc 对 PDF 直接产出 Markdown，没有 document 模型，也就没有 assets。文本型 PDF 可用，扫描版会提示需要 OCR（本机不做 OCR）。
+- **内嵌 base64 不可逆**：开启“打开时图片内嵌为 base64”后，转换出的 Markdown 已经是 data URI，保存时会保持内嵌，不会再自动改成 `.assets/` 相对路径；图片多的文档体积会明显增加。
 - **Crepe TopBar 的自定义按钮不能加 class**：Crepe 只给 `.top-bar-item`，所以 tooltip 是靠挂载后补 `title` 实现的（`installTopBarTooltips`）。增删按钮或升级 Crepe 小版本后，要同步 `topBarConfig.ts` 里的 `BUTTON_LABEL_ORDER`。
 - **`buildHeadingSelector` 未使用**：它没有从包入口导出，这里自己拼了 selector 结构，等价且不依赖半公开 API。
 - **多标签共享一份 plugins**：个别插件的实例级瞬时状态（tooltip 是否展开等）在切标签时会被重置，文档内容、撤销栈、选区不受影响。
@@ -131,5 +132,6 @@ samples/               测试用的 .docx / .md
 | 大纲宽度拖动 | ✅ 240 → 330px 拖拽生效并持久化，双击恢复 240px |
 | 窄窗口块级控件 | ✅ 760px 视口下 + 控件左边缘在编辑区内（248 vs 240） |
 | 右键复制选中 | ✅ 纯文本 / Markdown（`**粗体**`）/ 富文本（`<strong>粗体</strong>`） |
+| 打开文档图片内嵌 | ✅ 关闭时 `seekie-asset://`；开启后 `data:image/png;base64,…`，提示“已内嵌 base64” |
 | 标签右键菜单 | ✅ 关闭其他 → 剩 1 个；关闭右侧 → 剩 2 个；复制文件路径得到绝对路径 |
 | 设置按钮位置 | ✅ 唯一按钮，位于窗口按钮左侧的 `titlebar__right` |

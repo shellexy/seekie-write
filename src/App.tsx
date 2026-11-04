@@ -545,11 +545,13 @@ export default function App() {
         activate(id)
         if (result.converted) {
           if (result.assets.length) await api.asset.register(id, result.assets)
+          const inlined = result.inlinedImages ?? 0
+          const imageCount = result.assets.length > 0 ? result.assets.length : inlined
           notify(
-            result.assets.length
-              ? `已转换为 Markdown（含 ${result.assets.length} 张图片），保存时会生成 ${fileName(
-                  path,
-                )}.md`
+            imageCount
+              ? `已转换为 Markdown（含 ${imageCount} 张图片${
+                  inlined > 0 ? '，已内嵌 base64' : ''
+                }），保存时会生成 ${fileName(path)}.md`
               : `已转换为 Markdown，保存时会生成 ${fileName(path)}.md`,
           )
         }

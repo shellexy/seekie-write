@@ -37,6 +37,8 @@ export interface OpenResult {
   suggestedSavePath: string | null
   markdown: string
   assets: DocAsset[]
+  /** 已直接写成 base64 data URI 的图片数量（openInlineImages 开启时） */
+  inlinedImages?: number
   /** 文档标题（文件名） */
   title: string
 }
@@ -111,6 +113,8 @@ export interface AppSettings {
   lastOpenDir: string
   /** 上次「保存」对话框所在目录 */
   lastSaveDir: string
+  /** 打开 Office / PDF 等文档时，把内嵌图片直接写成 base64 data URI */
+  openInlineImages: boolean
 }
 
 export interface WindowStatePayload {

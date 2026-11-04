@@ -55,7 +55,9 @@ export async function openDocument(filePath: string, tabId: string): Promise<Ope
   }
 
   try {
-    const { markdown, assets: docAssets } = await convertToMarkdown(filePath, tabId)
+    const { markdown, assets: docAssets, inlinedImages } = await convertToMarkdown(filePath, tabId, {
+      inlineImages: getSettings().openInlineImages,
+    })
     return {
       ok: true,
       converted: true,
@@ -64,6 +66,7 @@ export async function openDocument(filePath: string, tabId: string): Promise<Ope
       suggestedSavePath: suggestedSavePath(filePath),
       markdown,
       assets: docAssets,
+      inlinedImages,
       title: `${basename(filePath)}.md`,
     }
   } catch (err) {

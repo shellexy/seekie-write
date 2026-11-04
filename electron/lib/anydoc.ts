@@ -28,6 +28,8 @@ export function suggestedSavePath(sourcePath: string): string {
 export interface ConvertResult {
   markdown: string
   assets: DocAsset[]
+  /** 已直接写成 base64 data URI 的图片数量 */
+  inlinedImages?: number
   /** anydoc 无法处理的告警 */
   warning?: string
 }
@@ -208,6 +210,7 @@ function blockToMd(block: AnyBlock, assets: DocAsset[], tabId: string, depth = 0
 export async function convertToMarkdown(
   filePath: string,
   tabId: string,
+  options: { inlineImages?: boolean } = {},
 ): Promise<ConvertResult> {
   const ext = extname(filePath).toLowerCase()
   const anydoc = await loadAnyDoc()
@@ -216,7 +219,12 @@ export async function convertToMarkdown(
   if (ext === '.pdf') {
     try {
       const markdown = await anydoc.toMarkdown(filePath)
-      return { markdown, assets: [], warning: 'PDF 中的内嵌图片无法提取，可能与原文排版有差异。' }
+      return {
+        markdown,
+        assets: [],
+        inlinedImages: 0,
+        warning: 'PDF 中的内嵌图片无法提取，可能与原文排版有差异。',
+      }
     } catch (err) {
       throw new Error(describeError(err))
     }
@@ -234,20 +242,36 @@ export async function convertToMarkdown(
       base64: Buffer.from(asset.data ?? []).toString('base64'),
     }))
 
-    const markdown = (doc.blocks ?? [])
+    let markdown = (doc.blocks ?? [])
       .map((b: AnyBlock) => blockToMd(b, assets, tabId))
       .filter((s: string) => s.trim().length > 0)
       .join('\n\n')
       .concat('\n')
 
+    // 可选：把 seekie-asset:// 占位直接换成 data URI，打开即自包含
+    let inlinedImages = 0
+    let resultAssets = assets
+    if (options.inlineImages && assets.length > 0) {
+      markdown = markdown.replace(/seekie-asset:\/\/[^/\s)]+\/(\d+)/g, (full, id: string) => {
+        const asset = assets.find((item) => String(item.id) === id)
+        if (!asset) return full
+        inlinedImages += 1
+        return `data:${asset.mediaType};base64,${asset.base64}`
+      })
+      if (inlinedImages === assets.length) resultAssets = []
+    }
+
     let warning: string | undefined
     if (assets.length > 0) {
-      warning = `文档内嵌 ${assets.length} 个图片资源，保存时会按当前图片策略处理。`
+      warning =
+        inlinedImages > 0
+          ? `文档内嵌 ${assets.length} 个图片资源，已转为 base64 内嵌。`
+          : `文档内嵌 ${assets.length} 个图片资源，保存时会按当前图片策略处理。`
     }
     if (size > 20 * 1024 * 1024) {
       warning = `${warning ?? ''}文件较大（${(size / 1024 / 1024).toFixed(1)} MB），已尽力转换。`
     }
-    return { markdown, assets, warning }
+    return { markdown, assets: resultAssets, inlinedImages, warning }
   } catch (err) {
     throw new Error(describeError(err))
   }

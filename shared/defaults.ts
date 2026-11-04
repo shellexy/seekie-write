@@ -13,4 +13,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sidebarWidth: 240,
   lastOpenDir: '',
   lastSaveDir: '',
+  openInlineImages: false,
 }
