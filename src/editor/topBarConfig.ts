@@ -335,11 +335,13 @@ let observer: MutationObserver | null = null
 export function installTopBarTooltips(root: HTMLElement): void {
   // Crepe 渲染的按钮不带 key，只能按 DOM 顺序对应；
   // 标题下拉是独立的 .top-bar-heading-button，所以按钮列表要跳过第一条标签
-  const order = BUTTON_LABEL_ORDER.map((key) => TOOLBAR_LABELS[key])
   const decorate = () => {
     root.querySelectorAll<HTMLButtonElement>('.milkdown-top-bar .top-bar-item').forEach((btn, i) => {
-      const label = order[i]
+      const key = BUTTON_LABEL_ORDER[i]
+      if (!key) return
+      const label = TOOLBAR_LABELS[key]
       if (!label) return
+      btn.dataset.key = key
       if (btn.title !== label) btn.title = label
       btn.setAttribute('aria-label', label)
     })

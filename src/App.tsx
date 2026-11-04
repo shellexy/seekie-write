@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Crepe } from '@milkdown/crepe'
 import type { Ctx } from '@milkdown/kit/ctx'
 import { editorViewCtx } from '@milkdown/kit/core'
-import type { ImageSaveMode } from '@shared/types'
+import type { ImageSaveMode, SaveKind } from '@shared/types'
 
 import { api } from './lib/api'
 import { useApp, type TabMeta } from './store/app'
@@ -27,6 +27,8 @@ import { Toast, ConvertingOverlay, ConfirmDialog, ImageModeDialog } from './comp
 
 const BLANK_DOC = '# 未命名\n\n'
 
+const SAVE_RANK: Record<SaveKind, number> = { auto: 0, manual: 1, saveAs: 2 }
+
 export default function App() {
   const settings = useApp((s) => s.settings)
   const sidebarVisible = useApp((s) => s.sidebarVisible)
@@ -45,6 +47,9 @@ export default function App() {
   const ctxRef = useRef<Ctx | null>(null)
   const bootedRef = useRef(false)
   const autosaveTimers = useRef<Map<string, number>>(new Map())
+  /** 同一标签同时只允许一个保存请求，避免自己写的文件被下一次保存误判成外部修改 */
+  const inFlightSaves = useRef<Set<string>>(new Set())
+  const pendingSaves = useRef<Map<string, SaveKind>>(new Map())
   const untitledSeq = useRef(0)
 
   const [outline, setOutline] = useState<OutlineItem[]>([])
@@ -101,7 +106,7 @@ export default function App() {
   const doSave = useCallback(
     async (
       id: string,
-      kind: 'auto' | 'manual' | 'saveAs',
+      kind: SaveKind,
       forceMode?: ImageSaveMode,
       overwrite = false,
     ) => {
@@ -110,52 +115,75 @@ export default function App() {
       if (!store || !tab) return
       flushTimer(id)
 
-      // 没有落盘路径（新建 / 转换后未另存）时，自动保存只写草稿区，
-      // 绝不弹“另存为”对话框打断输入。
-      if (!tab.savePath && kind === 'auto') {
-        await saveDraftIfNeeded(id)
-        patchTab(id, { dirty: false, saveStatus: 'idle', saveMessage: undefined })
+      if (inFlightSaves.current.has(id)) {
+        // 保存进行中：记下更高优先级的请求，结束后再补一次
+        const queued = pendingSaves.current.get(id)
+        if (!queued || SAVE_RANK[kind] > SAVE_RANK[queued]) pendingSaves.current.set(id, kind)
         return
       }
+      inFlightSaves.current.add(id)
 
-      const markdown = store.markdownOf(id)
-      patchTab(id, { saveStatus: 'saving' })
-      const result = await saveTab({
-        tabId: id,
-        savePath: kind === 'saveAs' ? null : tab.savePath,
-        markdown,
-        imageMode: forceMode ?? useApp.getState().settings.imageMode,
-        assets: tab.assets,
-        suggestedName:
-          tab.converted && tab.sourcePath ? `${fileName(tab.sourcePath)}.md` : `${tab.title}.md`,
-        kind,
-        mtime: tab.mtime,
-        overwrite,
-      })
+      try {
+        // 没有落盘路径（新建 / 转换后未另存）时，自动保存只写草稿区，
+        // 绝不弹“另存为”对话框打断输入。
+        if (!tab.savePath && kind === 'auto') {
+          await saveDraftIfNeeded(id)
+          patchTab(id, {
+            dirty: pendingSaves.current.has(id),
+            saveStatus: 'idle',
+            saveMessage: undefined,
+          })
+          return
+        }
 
-      if (result.status === 'saved' && result.path) {
-        patchTab(id, {
-          savePath: result.path,
-          saveStatus: 'saved',
-          saveMessage: undefined,
-          dirty: false,
-          draft: false,
-          conflict: false,
-          title: fileName(result.path),
-          mtime: await api.file.mtime(result.path),
+        const markdown = store.markdownOf(id)
+        patchTab(id, { saveStatus: 'saving' })
+        const result = await saveTab({
+          tabId: id,
+          savePath: kind === 'saveAs' ? null : tab.savePath,
+          markdown,
+          imageMode: forceMode ?? useApp.getState().settings.imageMode,
+          assets: tab.assets,
+          suggestedName:
+            tab.converted && tab.sourcePath ? `${fileName(tab.sourcePath)}.md` : `${tab.title}.md`,
+          kind,
+          mtime: tab.mtime,
+          overwrite,
         })
-        void api.asset.drop(id)
-        if (result.writtenImages) notify(`已保存，并写入 ${result.writtenImages} 张图片`)
-      } else if (result.status === 'canceled') {
-        patchTab(id, { saveStatus: 'idle' })
-      } else if (result.status === 'conflict') {
-        // 暂停该标签的自动保存，等用户决定
-        flushTimer(id)
-        patchTab(id, { saveStatus: 'conflict', conflict: true, saveMessage: result.message })
-        notify('文件已在外部被修改，自动保存已暂停', 'error')
-      } else {
-        patchTab(id, { saveStatus: 'error', saveMessage: result.message })
-        notify(result.message ?? '保存失败', 'error')
+
+        if (result.status === 'saved' && result.path) {
+          patchTab(id, {
+            savePath: result.path,
+            saveStatus: 'saved',
+            saveMessage: undefined,
+            // 保存期间又有编辑的话，保持 dirty，交给 pending 的那次保存
+            dirty: pendingSaves.current.has(id),
+            draft: false,
+            conflict: false,
+            title: fileName(result.path),
+            mtime: result.mtime ?? (await api.file.mtime(result.path)),
+          })
+          void api.asset.drop(id)
+          if (result.writtenImages) notify(`已保存，并写入 ${result.writtenImages} 张图片`)
+        } else if (result.status === 'canceled') {
+          patchTab(id, { saveStatus: 'idle' })
+        } else if (result.status === 'conflict') {
+          // 暂停该标签的自动保存，等用户决定
+          flushTimer(id)
+          pendingSaves.current.delete(id)
+          patchTab(id, { saveStatus: 'conflict', conflict: true, saveMessage: result.message })
+          notify('文件已在外部被修改，自动保存已暂停', 'error')
+        } else {
+          patchTab(id, { saveStatus: 'error', saveMessage: result.message })
+          notify(result.message ?? '保存失败', 'error')
+        }
+      } finally {
+        inFlightSaves.current.delete(id)
+        const queued = pendingSaves.current.get(id)
+        if (queued) {
+          pendingSaves.current.delete(id)
+          window.setTimeout(() => void doSave(id, queued), 150)
+        }
       }
     },
     [flushTimer, notify, patchTab, saveDraftIfNeeded],
@@ -586,10 +614,17 @@ export default function App() {
       const state = useApp.getState()
       for (const tab of state.tabs) {
         if (!tab.savePath || tab.conflict) continue
+        // 保存进行中时磁盘 mtime 已经被我们自己的写入改掉，跳过这一轮
+        if (inFlightSaves.current.has(tab.id)) continue
         const mtime = await api.file.mtime(tab.savePath)
-        if (mtime != null && tab.mtime != null && Math.abs(mtime - tab.mtime) > 1) {
-          flushTimer(tab.id)
-          patchTab(tab.id, { conflict: true, saveStatus: 'conflict' })
+        // 等待 IPC 期间可能刚好完成了一次我们自己的保存：取最新状态再比较
+        const latest = useApp.getState().tabs.find((t) => t.id === tab.id)
+        if (!latest || !latest.savePath || latest.conflict) continue
+        if (inFlightSaves.current.has(latest.id)) continue
+        if (mtime != null && latest.mtime != null && Math.abs(mtime - latest.mtime) > 1) {
+          flushTimer(latest.id)
+          pendingSaves.current.delete(latest.id)
+          patchTab(latest.id, { conflict: true, saveStatus: 'conflict' })
         }
       }
     }, 5000)

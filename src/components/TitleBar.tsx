@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../store/app'
 import { api } from '../lib/api'
 import { formatNumber } from '../lib/wordcount'
@@ -17,6 +17,7 @@ import {
   IconMaximize,
   IconRestore,
   IconClose,
+  IconChevron,
 } from './Icons'
 
 export interface TitleBarActions {
@@ -45,6 +46,45 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
   const toggleSidebar = useApp((s) => s.toggleSidebar)
   const [maximized, setMaximized] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
+  const [tabsOverflow, setTabsOverflow] = useState(false)
+  const [tabMenuOpen, setTabMenuOpen] = useState(false)
+  const tabStripRef = useRef<HTMLDivElement>(null)
+
+  // 标签条用满剩余宽度；放不下时在右侧显示“全部标签”下拉
+  useEffect(() => {
+    const el = tabStripRef.current
+    if (!el) {
+      setTabsOverflow(false)
+      return
+    }
+    const update = () => setTabsOverflow(el.scrollWidth > el.clientWidth + 1)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    window.addEventListener('resize', update)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [tabs.length])
+
+  useEffect(() => {
+    if (!tabMenuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('.tab-overflow')) {
+        setTabMenuOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTabMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [tabMenuOpen])
 
   useEffect(() => {
     void api.window.isMaximized().then(setMaximized)
@@ -128,7 +168,7 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
         {tabs.length > 0 && (
           <>
             <span className="vr" />
-            <div className="tabstrip" role="tablist">
+            <div className="tabstrip" role="tablist" ref={tabStripRef}>
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
@@ -172,6 +212,52 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
                 </div>
               ))}
             </div>
+
+            {tabsOverflow && (
+              <div className="tab-overflow">
+                <button
+                  className={`icon-btn${tabMenuOpen ? ' is-on' : ''}`}
+                  onClick={() => setTabMenuOpen((open) => !open)}
+                  title="全部标签"
+                  aria-label="全部标签"
+                >
+                  <IconChevron width={14} height={14} />
+                </button>
+                {tabMenuOpen && (
+                  <div className="tab-menu" role="menu">
+                    {tabs.map((tab) => (
+                      <div
+                        key={tab.id}
+                        role="menuitem"
+                        className={`tab-menu__item${tab.id === activeId ? ' is-active' : ''}`}
+                        onClick={() => {
+                          actions.onActivateTab(tab.id)
+                          setTabMenuOpen(false)
+                        }}
+                        title={tabTitle(tab)}
+                      >
+                        <span className="tab-menu__label">{tab.title}</span>
+                        <span className={`tab-menu__state${tab.dirty ? ' is-dirty' : ''}`}>
+                          {tab.saveStatus === 'saving' ? '⋯' : tab.conflict ? '⚠' : tab.dirty ? '●' : null}
+                        </span>
+                        <button
+                          className="tab-menu__close"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            actions.onCloseTab(tab.id)
+                            setTabMenuOpen(false)
+                          }}
+                          title="关闭标签"
+                          aria-label="关闭标签"
+                        >
+                          <IconClose width={10} height={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -127,7 +127,22 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         </div>
 
         <div className="dialog__actions">
-          <button className="btn" onClick={() => update({ ...DEFAULT_SETTINGS })}>
+          <button
+            className="btn"
+            onClick={() =>
+              update({
+                theme: DEFAULT_SETTINGS.theme,
+                crepeTheme: DEFAULT_SETTINGS.crepeTheme,
+                contentWidth: DEFAULT_SETTINGS.contentWidth,
+                fontFamily: DEFAULT_SETTINGS.fontFamily,
+                fontSize: DEFAULT_SETTINGS.fontSize,
+                imageMode: DEFAULT_SETTINGS.imageMode,
+                autoSaveDelay: DEFAULT_SETTINGS.autoSaveDelay,
+                sidebarVisible: DEFAULT_SETTINGS.sidebarVisible,
+                sidebarWidth: DEFAULT_SETTINGS.sidebarWidth,
+              })
+            }
+          >
             恢复默认
           </button>
           <button className="btn btn--primary" onClick={onClose}>

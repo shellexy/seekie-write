@@ -60,6 +60,14 @@
   color: var(--accent);
 }
 
+/* 图片图标线条偏细、在浅色背景下辨识度低，单独加深 */
+.milkdown .milkdown-top-bar .top-bar-item[data-key='image'] {
+  color: var(--fg);
+}
+.milkdown .milkdown-top-bar .top-bar-item[data-key='image'] svg {
+  stroke-width: 2.1;
+}
+
 .milkdown .milkdown-top-bar .top-bar-divider {
   background: var(--border);
   height: 18px;

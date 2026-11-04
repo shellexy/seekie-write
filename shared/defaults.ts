@@ -11,4 +11,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fontSize: 16,
   sidebarVisible: true,
   sidebarWidth: 240,
+  lastOpenDir: '',
+  lastSaveDir: '',
 }

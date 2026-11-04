@@ -4,7 +4,7 @@ import { basename, dirname, extname, join, relative } from 'node:path'
 import type { DocAsset, OpenResult, SaveRequest, SaveResult } from '../../shared/types'
 import { convertToMarkdown, isConvertible, isMarkdownLike, suggestedSavePath } from './anydoc'
 import * as assets from './assetStore'
-import { getSettings } from './settings'
+import { getSettings, setSettings } from './settings'
 
 const ASSET_RE = /seekie-asset:\/\/[^/\s)]+\/(\d+)/g
 
@@ -156,9 +156,20 @@ export async function saveDocument(
 
   if (!target) {
     // 还没有落盘位置：另存为
-    const defaultPath = req.suggestedName
-      ? join(process.cwd(), req.suggestedName)
-      : undefined
+    // 默认目录优先级：上次保存对话框 → 当前文件所在目录 → 上次打开对话框 → cwd
+    const settings = getSettings()
+    const baseDir =
+      settings.lastSaveDir ||
+      (req.savePath ? dirname(req.savePath) : '') ||
+      settings.lastOpenDir
+    const suggested = req.suggestedName ? basename(req.suggestedName) : ''
+    const defaultPath = baseDir
+      ? suggested
+        ? join(baseDir, suggested)
+        : baseDir
+      : suggested
+        ? join(process.cwd(), suggested)
+        : undefined
     const result = await dialog.showSaveDialog(win ?? undefined!, {
       title: '保存为 Markdown',
       defaultPath,
@@ -170,6 +181,7 @@ export async function saveDocument(
     })
     if (result.canceled || !result.filePath) return { status: 'canceled' }
     target = result.filePath
+    setSettings({ lastSaveDir: dirname(target) })
   }
 
   const { markdown, writtenImages } = rewriteAssets(req.markdown, target, req)
@@ -180,7 +192,7 @@ export async function saveDocument(
     return { status: 'error', message: `写入失败：${(err as Error).message}` }
   }
 
-  return { status: 'saved', path: target, writtenImages }
+  return { status: 'saved', path: target, writtenImages, mtime: mtimeOf(target) }
 }
 
 /** 保存前检查磁盘文件是否被外部改过 */
@@ -201,6 +213,7 @@ export function revealInFolder(path: string | null): void {
 export async function pickOpenFile(win: BrowserWindow | null): Promise<string | null> {
   const result = await dialog.showOpenDialog(win ?? undefined!, {
     title: '打开文档',
+    defaultPath: getSettings().lastOpenDir || undefined,
     properties: ['openFile'],
     filters: [
       { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'mdx', 'txt'] },
@@ -215,7 +228,9 @@ export async function pickOpenFile(win: BrowserWindow | null): Promise<string | 
     ],
   })
   if (result.canceled || !result.filePaths.length) return null
-  return result.filePaths[0]
+  const file = result.filePaths[0]
+  setSettings({ lastOpenDir: dirname(file) })
+  return file
 }
 
 export function settingsImageMode() {

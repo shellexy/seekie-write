@@ -74,6 +74,8 @@ export interface SaveResult {
   message?: string
   /** 已写入的图片文件数 */
   writtenImages?: number
+  /** 写入完成后的 mtime，渲染层直接用作下一次冲突检测基线 */
+  mtime?: number | null
 }
 
 export interface DraftState {
@@ -105,6 +107,10 @@ export interface AppSettings {
   fontSize: number
   sidebarVisible: boolean
   sidebarWidth: number
+  /** 上次「打开」对话框所在目录 */
+  lastOpenDir: string
+  /** 上次「保存」对话框所在目录 */
+  lastSaveDir: string
 }
 
 export interface WindowStatePayload {

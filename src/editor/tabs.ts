@@ -176,8 +176,10 @@ export function selectRange(ctx: Ctx, from: number, to: number): void {
   const safeFrom = Math.min(Math.max(from, 1), max)
   const safeTo = Math.min(Math.max(to, safeFrom), max)
   const tr = view.state.tr.setSelection(TextSelection.create(doc, safeFrom, safeTo))
-  view.dispatch(tr.scrollIntoView())
+  view.dispatch(tr)
   view.focus()
+  // 用带顶部工具栏高度的偏移滚动，避免标题被 sticky TopBar 盖住
+  scrollToPos(ctx, safeFrom)
 }
 
 export function scrollToPos(ctx: Ctx, pos: number): void {
@@ -185,9 +187,19 @@ export function scrollToPos(ctx: Ctx, pos: number): void {
   const coords = view.coordsAtPos(Math.min(pos, view.state.doc.content.size))
   const scroller = view.dom.closest('.editor-scroll') as HTMLElement | null
   if (!scroller) return
+
+  // TopBar 是 sticky 的，直接滚到容器顶部会让标题藏在它下面；
+  // 注意 TopBar 不一定是 ProseMirror 的后代（它是 .milkdown 的子节点）
+  const topbar =
+    view.dom.closest('.milkdown')?.querySelector<HTMLElement>('.milkdown-top-bar') ??
+    document.querySelector<HTMLElement>('.milkdown-top-bar')
+  const inset = (topbar?.getBoundingClientRect().height ?? 0) + 16
   const scrollerRect = scroller.getBoundingClientRect()
   const delta = coords.top - scrollerRect.top
-  scroller.scrollTo({ top: scroller.scrollTop + delta - 24, behavior: 'smooth' })
+  scroller.scrollTo({
+    top: Math.max(0, scroller.scrollTop + delta - inset),
+    behavior: 'smooth',
+  })
 }
 
 export function undo(ctx: Ctx): void {
