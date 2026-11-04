@@ -1,0 +1,49 @@
+appId: io.seekie.write
+productName: seekie-write
+copyright: Copyright © 2026 seekie
+
+directories:
+  buildResources: build
+  output: release
+
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+  # anydoc 的原生二进制必须打包进去
+  - node_modules/@firecrawl/anydoc/**/*
+  - node_modules/@firecrawl/anydoc-*/**/*
+
+asarUnpack:
+  - node_modules/@firecrawl/**/*
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
+  synopsis: 所见即所得 Markdown 编辑器
+  description: >-
+    seekie-write 是一个类 Typora 的所见即所得 Markdown 编辑器，
+    支持打开 Word / PowerPoint / Excel / PDF 等文档并转换为 Markdown。
+  desktop:
+    entry:
+      Name: seekie-write
+      Comment: 所见即所得 Markdown 编辑器
+      Keywords: markdown;editor;notes;
+      MimeType: text/markdown;
+
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-${version}-setup.${ext}
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.productivity
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

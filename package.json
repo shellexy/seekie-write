@@ -1,0 +1,40 @@
+{
+  "name": "seekie-write",
+  "version": "0.1.0",
+  "description": "所见即所得 Markdown 编辑器（Electron + Milkdown Crepe）",
+  "main": "./out/main/index.js",
+  "author": "seekie",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "dist": "npm run build && electron-builder --linux AppImage deb",
+    "dist:dir": "npm run build && electron-builder --dir"
+  },
+  "dependencies": {
+    "@firecrawl/anydoc": "0.2.4",
+    "@milkdown/crepe": "^7.5.9",
+    "@milkdown/kit": "7.23.0",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@codemirror/view": "^6.43.15",
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^45.2.2",
+    "electron-builder": "^20.23.1",
+    "electron-vite": "^3.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "ws": "^8.22.1",
+    "zustand": "^5.0.3"
+  }
+}

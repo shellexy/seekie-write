@@ -1,0 +1,316 @@
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  protocol,
+  shell,
+  type MenuItemConstructorOptions,
+} from 'electron'
+import { join } from 'node:path'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import type {
+  AppSettings,
+  DraftState,
+  SaveRequest,
+  WindowStatePayload,
+  DocAsset,
+} from '../shared/types'
+import { IPC } from '../shared/types'
+import * as assetStore from './lib/assetStore'
+import { getSettings, setSettings } from './lib/settings'
+import * as drafts from './lib/drafts'
+import { mtimeOf, openDocument, pickOpenFile, revealInFolder, saveDocument } from './lib/files'
+
+const __dirname_ = fileURLToPath(new URL('.', import.meta.url))
+const isDev = !!process.env['ELECTRON_RENDERER_URL']
+
+// 必须在 app ready 之前注册：把 seekie-asset 声明成标准、安全、可流式访问的方案
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'seekie-asset',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  },
+])
+
+let mainWindow: BrowserWindow | null = null
+/** 启动参数里带的待打开文件（Linux 双击 / 命令行） */
+let pendingOpenFile: string | null = null
+
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_event, argv) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+    const file = pickFileFromArgv(argv)
+    if (file) mainWindow?.webContents.send(IPC.openFileRequest, file)
+  })
+
+  app.whenReady().then(init)
+}
+
+function pickFileFromArgv(argv: string[]): string | null {
+  const candidates = argv.slice(1).filter((arg) => !arg.startsWith('-') && !arg.includes('electron'))
+  for (const candidate of candidates.reverse()) {
+    if (existsSync(candidate) && !candidate.endsWith('.asar')) return candidate
+  }
+  return null
+}
+
+function encodeAssetBody(base64: string): Buffer {
+  return Buffer.from(base64, 'base64')
+}
+
+function registerAssetProtocol(): void {
+  protocol.handle('seekie-asset', (request) => {
+    // seekie-asset://<tabId>/<assetId>
+    const url = new URL(request.url)
+    const tabId = url.hostname
+    const assetId = url.pathname.replace(/^\//, '')
+    const asset = assetStore.get(tabId, assetId)
+    if (!asset) return new Response('Not Found', { status: 404 })
+    return new Response(encodeAssetBody(asset.base64), {
+      headers: {
+        'Content-Type': asset.mediaType,
+        'Cache-Control': 'no-store',
+      },
+    })
+  })
+}
+
+function createWindow(): void {
+  const settings = getSettings()
+
+  mainWindow = new BrowserWindow({
+    width: 1180,
+    height: 780,
+    minWidth: 720,
+    minHeight: 480,
+    show: false,
+    frame: false, // Linux / Windows：完全自绘标题栏
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    trafficLightPosition: { x: 14, y: 13 },
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1b19' : '#fffdfb',
+    icon: join(__dirname_, '../../resources/icon.png'),
+    webPreferences: {
+      preload: join(__dirname_, '../preload/index.mjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false, // preload 需要 require('electron')，但不暴露任何 fs
+      spellcheck: true,
+    },
+  })
+
+  mainWindow.on('ready-to-show', () => mainWindow?.show())
+
+  const emitWindowState = () => {
+    if (!mainWindow) return
+    const payload: WindowStatePayload = {
+      maximized: mainWindow.isMaximized(),
+      focused: mainWindow.isFocused(),
+    }
+    mainWindow.webContents.send(IPC.winMaximizedChanged, payload)
+  }
+  mainWindow.on('maximize', emitWindowState)
+  mainWindow.on('unmaximize', emitWindowState)
+  mainWindow.on('focus', emitWindowState)
+  mainWindow.on('blur', emitWindowState)
+
+  // 关闭前先让渲染层把无路径的标签写进草稿区（最多等 1.5s）
+  let closeReady = false
+  mainWindow.on('close', (event) => {
+    if (closeReady) return
+    event.preventDefault()
+    closeReady = true
+    mainWindow?.webContents.send(IPC.beforeClose)
+    setTimeout(() => mainWindow?.destroy(), 1500)
+  })
+  ipcMain.on(IPC.closeReady, () => {
+    mainWindow?.destroy()
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+
+  // 拖文件进窗口：把路径交给渲染层打开
+  mainWindow.webContents.on('will-navigate', (event) => event.preventDefault())
+
+  // 外链用系统浏览器打开，绝不接管主窗口
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/.test(url)) shell.openExternal(url)
+    return { action: 'deny' }
+  })
+
+  if (isDev) {
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] as string)
+  } else {
+    mainWindow.loadFile(join(__dirname_, '../renderer/index.html'))
+  }
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    mainWindow?.webContents.send(IPC.winMaximizedChanged, {
+      maximized: mainWindow.isMaximized(),
+      focused: true,
+    } satisfies WindowStatePayload)
+    const file = pendingOpenFile ?? pickFileFromArgv(process.argv)
+    pendingOpenFile = null
+    if (file) mainWindow?.webContents.send(IPC.openFileRequest, file)
+  })
+
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const ctrl = input.control || input.meta
+    // Ctrl+Shift+I / F12 开发者工具（仅开发环境）
+    if (isDev && (input.key === 'F12' || (ctrl && input.shift && input.key.toLowerCase() === 'i'))) {
+      mainWindow?.webContents.toggleDevTools()
+      event.preventDefault()
+    }
+  })
+}
+
+function buildMenu(): void {
+  const send = (command: string) => () => mainWindow?.webContents.send(IPC.menuCommand, { command })
+
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: '文件',
+      submenu: [
+        { label: '新建', accelerator: 'CmdOrCtrl+N', click: send('file:new') },
+        { label: '打开…', accelerator: 'CmdOrCtrl+O', click: send('file:open') },
+        { type: 'separator' },
+        { label: '保存', accelerator: 'CmdOrCtrl+S', click: send('file:save') },
+        { label: '另存为…', accelerator: 'CmdOrCtrl+Shift+S', click: send('file:save-as') },
+        { type: 'separator' },
+        { label: '关闭标签', accelerator: 'CmdOrCtrl+W', click: send('tab:close') },
+        { type: 'separator' },
+        { label: '退出', accelerator: 'CmdOrCtrl+Q', role: 'quit' },
+      ],
+    },
+    {
+      label: '编辑',
+      submenu: [
+        { label: '撤销', accelerator: 'CmdOrCtrl+Z', click: send('edit:undo') },
+        { label: '重做', accelerator: 'CmdOrCtrl+Shift+Z', click: send('edit:redo') },
+        { type: 'separator' },
+        { label: '剪切', accelerator: 'CmdOrCtrl+X', role: 'cut' },
+        { label: '复制', accelerator: 'CmdOrCtrl+C', role: 'copy' },
+        { label: '粘贴', accelerator: 'CmdOrCtrl+V', role: 'paste' },
+        { label: '全选', accelerator: 'CmdOrCtrl+A', role: 'selectAll' },
+        { type: 'separator' },
+        { label: '查找…', accelerator: 'CmdOrCtrl+F', click: send('edit:find') },
+      ],
+    },
+    {
+      label: '段落',
+      submenu: [
+        { label: '段落', accelerator: 'CmdOrCtrl+0', click: send('format:paragraph') },
+        { label: '标题一', accelerator: 'CmdOrCtrl+1', click: send('format:h1') },
+        { label: '标题二', accelerator: 'CmdOrCtrl+2', click: send('format:h2') },
+        { label: '标题三', accelerator: 'CmdOrCtrl+3', click: send('format:h3') },
+        { type: 'separator' },
+        { label: '清除格式', accelerator: 'CmdOrCtrl+\\', click: send('format:clear') },
+      ],
+    },
+    {
+      label: '视图',
+      submenu: [
+        { label: '切换侧栏', accelerator: 'CmdOrCtrl+B', click: send('view:toggle-sidebar') },
+        { type: 'separator' },
+        { label: '重新载入', accelerator: 'CmdOrCtrl+R', click: send('view:reload-tab') },
+        { label: '放大', accelerator: 'CmdOrCtrl+=', click: send('view:zoom-in') },
+        { label: '缩小', accelerator: 'CmdOrCtrl+-', click: send('view:zoom-out') },
+        { label: '重置缩放', accelerator: 'CmdOrCtrl+Shift+0', click: send('view:zoom-reset') },
+      ],
+    },
+    {
+      label: '帮助',
+      submenu: [
+        { label: '关于 seekie-write', click: send('help:about') },
+        ...(isDev
+          ? ([{ label: '开发者工具', accelerator: 'F12', role: 'toggleDevTools' }] as MenuItemConstructorOptions[])
+          : []),
+      ],
+    },
+  ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
+function registerIpc(): void {
+  const withWindow = (fn: (win: BrowserWindow) => void) => () => {
+    if (mainWindow) fn(mainWindow)
+  }
+
+  ipcMain.on(IPC.winMinimize, withWindow((win) => win.minimize()))
+  ipcMain.on(IPC.winToggleMaximize, withWindow((win) => (win.isMaximized() ? win.unmaximize() : win.maximize())))
+  ipcMain.on(IPC.winClose, withWindow((win) => win.close()))
+  ipcMain.handle(IPC.winIsMaximized, () => mainWindow?.isMaximized() ?? false)
+  ipcMain.on(IPC.winSetTitle, (_e, title: string) => {
+    mainWindow?.setTitle(title)
+  })
+
+  ipcMain.handle(IPC.fileOpenDialog, async () => pickOpenFile(mainWindow))
+  ipcMain.handle(IPC.fileOpenPath, async (_e, path: string) => {
+    if (mainWindow) mainWindow.webContents.send(IPC.openFileRequest, path)
+    return true
+  })
+  ipcMain.handle(IPC.fileReadMarkdown, async (_e, path: string, tabId: string) => {
+    const result = await openDocument(path, tabId)
+    // 转换出来的内嵌图片先进内存仓库（按标签隔离），渲染进程随后即可通过 seekie-asset:// 显示
+    if (result.ok && result.assets.length) assetStore.putMany(tabId, result.assets)
+    return result
+  })
+  ipcMain.handle(IPC.fileSave, async (_e, req: SaveRequest) => saveDocument(mainWindow, req))
+  ipcMain.handle(IPC.fileReveal, async (_e, path: string) => revealInFolder(path))
+  ipcMain.handle('file:mtime', async (_e, path: string | null) => mtimeOf(path))
+
+  ipcMain.handle(IPC.assetRegister, async (_e, tabId: string, list: DocAsset[]) => {
+    assetStore.putMany(tabId, list)
+    return true
+  })
+  ipcMain.handle(IPC.assetPut, async (_e, tabId: string, asset: DocAsset) => {
+    assetStore.put(tabId, asset)
+    return true
+  })
+  ipcMain.handle(IPC.assetDrop, async (_e, tabId: string) => {
+    assetStore.drop(tabId)
+    return true
+  })
+
+  ipcMain.handle(IPC.draftSave, async (_e, draft: Omit<DraftState, 'draftPath'>) => drafts.saveDraft(draft))
+  ipcMain.handle(IPC.draftDrop, async (_e, tabId: string) => drafts.dropDraft(tabId))
+  ipcMain.handle(IPC.draftLoadSession, async () => drafts.loadSession())
+  ipcMain.handle(IPC.settingsGet, async () => getSettings())
+  ipcMain.handle(IPC.settingsSet, async (_e, patch: Partial<AppSettings>) => setSettings(patch))
+  ipcMain.handle('app:toggle-dev-tools', async () => mainWindow?.webContents.toggleDevTools())
+}
+
+async function init(): Promise<void> {
+  registerAssetProtocol()
+  registerIpc()
+  buildMenu()
+  createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+}
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('web-contents-created', (_e, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/.test(url)) shell.openExternal(url)
+    return { action: 'deny' }
+  })
+})
+
+export { pendingOpenFile }

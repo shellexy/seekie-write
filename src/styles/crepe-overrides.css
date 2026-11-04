@@ -1,0 +1,249 @@
+/**
+ * Crepe 皮肤对齐 seekie-write 的 token。
+ * 只覆盖观感相关的部分，不动交互逻辑。
+ */
+
+.milkdown {
+  --crepe-color-background: var(--bg);
+  --crepe-color-surface: var(--bg-soft);
+  --crepe-color-surface-low: var(--bg-soft);
+  --crepe-color-on-background: var(--fg);
+  --crepe-color-on-surface: var(--fg);
+  --crepe-color-on-surface-variant: var(--fg-muted);
+  --crepe-color-outline: var(--border-strong);
+  --crepe-color-primary: var(--accent);
+  --crepe-color-hover: var(--hover);
+  --crepe-color-selected: var(--active);
+  --crepe-color-inline-area: var(--bg-soft);
+  --crepe-font-default: var(--font-body);
+  --crepe-font-title: var(--font-body);
+  --crepe-font-code: var(--font-mono);
+  font-family: var(--font-body);
+}
+
+.milkdown .milkdown-top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 10px;
+  min-height: var(--topbar-h);
+  gap: 2px;
+}
+
+.milkdown .milkdown-top-bar .top-bar-inner {
+  gap: 2px;
+  min-height: var(--topbar-h);
+  align-items: center;
+}
+
+.milkdown .milkdown-top-bar .top-bar-item {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.milkdown .milkdown-top-bar .top-bar-item:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+.milkdown .milkdown-top-bar .top-bar-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.milkdown .milkdown-top-bar .top-bar-divider {
+  background: var(--border);
+  height: 18px;
+  margin: 0 6px;
+}
+
+.milkdown .milkdown-top-bar .top-bar-heading-button {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.milkdown .milkdown-top-bar .top-bar-heading-button:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+.milkdown .milkdown-top-bar .top-bar-heading-dropdown {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  min-width: 120px;
+}
+.milkdown .milkdown-top-bar .top-bar-heading-option {
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--fg);
+}
+.milkdown .milkdown-top-bar .top-bar-heading-option:hover {
+  background: var(--hover);
+}
+.milkdown .milkdown-top-bar .top-bar-heading-option.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* 正文区：Typora 式的窄栏排版 */
+.milkdown .ProseMirror {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 40px 40vh;
+  outline: none;
+  font-size: 16px;
+  line-height: 1.78;
+  color: var(--fg);
+  caret-color: var(--accent);
+}
+
+.milkdown .ProseMirror h1,
+.milkdown .ProseMirror h2,
+.milkdown .ProseMirror h3,
+.milkdown .ProseMirror h4,
+.milkdown .ProseMirror h5,
+.milkdown .ProseMirror h6 {
+  font-family: var(--font-body);
+  line-height: 1.35;
+  margin: 1.6em 0 0.6em;
+  font-weight: 600;
+}
+.milkdown .ProseMirror h1 {
+  font-size: 1.72em;
+  margin-top: 0.6em;
+}
+.milkdown .ProseMirror h2 {
+  font-size: 1.4em;
+}
+.milkdown .ProseMirror h3 {
+  font-size: 1.18em;
+}
+.milkdown .ProseMirror p {
+  margin: 0.75em 0;
+}
+.milkdown .ProseMirror a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.milkdown .ProseMirror blockquote {
+  margin: 1em 0;
+  padding: 0.2em 0 0.2em 1em;
+  border-left: 3px solid var(--border-strong);
+  color: var(--fg-muted);
+}
+.milkdown .ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.08em 0.32em;
+}
+.milkdown .ProseMirror pre {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.milkdown .ProseMirror pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.milkdown .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
+}
+.milkdown .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+.milkdown .ProseMirror th,
+.milkdown .ProseMirror td {
+  border: 1px solid var(--border);
+  padding: 7px 10px;
+  text-align: left;
+}
+.milkdown .ProseMirror th {
+  background: var(--bg-soft);
+  font-weight: 600;
+}
+.milkdown .ProseMirror img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+/* 深色主题下 Codemirror 代码块 */
+.theme-dark .milkdown .ProseMirror pre {
+  background: #14120f;
+}
+
+/* 图片块：让 Crepe 的占位在深浅主题下都协调 */
+.milkdown .milkdown-image-block .image-wrapper {
+  background: var(--bg-soft);
+}
+
+/* 拖拽手柄 / 斜杠菜单对齐主题色 */
+.milkdown .milkdown-block-handle,
+.milkdown .milkdown-slash-menu {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+/* 让 Crepe 容器铺满可用高度，避免正文下方露出另一种底色 */
+.crepe-host,
+.crepe-host > .milkdown,
+.crepe-host > .milkdown > .editor {
+  min-height: 100%;
+  background: var(--bg);
+}
+
+/* 收紧列表与代码块的垂直间距（Crepe 默认偏松，中文排版更紧凑） */
+.milkdown .ProseMirror .milkdown-list-item-block {
+  padding: 0;
+}
+.milkdown .ProseMirror .milkdown-list-item-block > .list-item {
+  margin: 0;
+  gap: 6px;
+}
+.milkdown .ProseMirror .milkdown-list-item-block > .list-item > .children {
+  padding-left: 0;
+}
+/* 列表文本前 Crepe 留了空行般的高度，这里把行盒压回正文节奏 */
+.milkdown .ProseMirror .milkdown-list-item-block .content-dom > p {
+  margin: 0.18em 0;
+}
+.milkdown .ProseMirror .milkdown-list-item-block li > .label-wrapper {
+  height: 1.78em;
+}
+.milkdown .ProseMirror .milkdown-code-block {
+  margin: 1em 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.milkdown .ProseMirror p:empty {
+  min-height: 0.3em;
+}
