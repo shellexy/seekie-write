@@ -10,3 +10,6 @@ out
 seekie-debug/
 *.swp
 release/
+
+/.smoke/
+/.smoke-dev/

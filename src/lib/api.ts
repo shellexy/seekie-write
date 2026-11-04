@@ -1,5 +1,6 @@
 import type {
   AppSettings,
+  ClipboardPayload,
   DocAsset,
   DraftState,
   MenuCommandPayload,
@@ -77,6 +78,16 @@ const mock = {
   menu: {
     onCommand: (_cb: (p: MenuCommandPayload) => void) => unsub(),
   },
+  clipboard: {
+    write: async (payload: ClipboardPayload): Promise<boolean> => {
+      try {
+        await navigator.clipboard.writeText(payload.text)
+        return true
+      } catch {
+        return false
+      }
+    },
+  },
   app: {
     onOpenFile: (_cb: (p: string) => void) => unsub(),
     takeStartupFile: async () => null,
@@ -120,6 +131,9 @@ export interface SeekieApi {
   }
   menu: {
     onCommand: (cb: (payload: MenuCommandPayload) => void) => () => void
+  }
+  clipboard: {
+    write: (payload: ClipboardPayload) => Promise<boolean>
   }
   app: {
     onOpenFile: (cb: (path: string) => void) => () => void

@@ -1,6 +1,8 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
+  ClipboardItem,
   ipcMain,
   Menu,
   nativeTheme,
@@ -13,6 +15,7 @@ import { statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type {
   AppSettings,
+  ClipboardPayload,
   DraftState,
   SaveRequest,
   WindowStatePayload,
@@ -154,6 +157,7 @@ function createWindow(): void {
     const send = (command: string) => () =>
       mainWindow?.webContents.send(IPC.menuCommand, { command })
     const template: MenuItemConstructorOptions[] = []
+    const hasSelection = !!params.selectionText
 
     // 拼写建议
     if (params.misspelledWord) {
@@ -173,6 +177,9 @@ function createWindow(): void {
       { type: 'separator' },
       { label: '剪切', role: 'cut', enabled: params.editFlags.canCut },
       { label: '复制', role: 'copy', enabled: params.editFlags.canCopy },
+      { label: '复制选中（纯文本）', enabled: hasSelection, click: () => void clipboard.writeText(params.selectionText) },
+      { label: '复制选中（Markdown）', enabled: hasSelection, click: send('clipboard:copy-markdown') },
+      { label: '复制选中（富文本）', enabled: hasSelection, click: send('clipboard:copy-html') },
       { label: '粘贴', role: 'paste', enabled: params.editFlags.canPaste },
       { label: '全选', role: 'selectAll', enabled: params.editFlags.canSelectAll },
       { type: 'separator' },
@@ -307,6 +314,20 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.fileOpenDialog, async () => pickOpenFile(mainWindow))
+  ipcMain.handle(IPC.clipboardWrite, async (_e, payload: ClipboardPayload) => {
+    if (!payload?.text) return false
+    if (payload.html) {
+      await clipboard.write([
+        new ClipboardItem({
+          'text/plain': payload.text,
+          'text/html': payload.html,
+        }),
+      ])
+    } else {
+      await clipboard.writeText(payload.text)
+    }
+    return true
+  })
   ipcMain.handle(IPC.takeStartupFile, async () => {
     const file = pendingOpenFile
     pendingOpenFile = null

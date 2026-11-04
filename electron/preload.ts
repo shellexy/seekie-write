@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types'
 import type {
   AppSettings,
+  ClipboardPayload,
   DocAsset,
   DraftState,
   MenuCommandPayload,
@@ -59,6 +60,10 @@ const api = {
       ipcRenderer.on(IPC.menuCommand, listener)
       return () => ipcRenderer.off(IPC.menuCommand, listener)
     },
+  },
+  clipboard: {
+    write: (payload: ClipboardPayload): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.clipboardWrite, payload),
   },
   app: {
     onOpenFile: (cb: (path: string) => void) => {

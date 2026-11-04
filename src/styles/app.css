@@ -35,6 +35,14 @@
   min-width: 16px;
 }
 
+.titlebar__right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 0 2px;
+}
+
 .titlebar__left,
 .titlebar__files {
   display: flex;
@@ -342,6 +350,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   scroll-behavior: smooth;
+  container-type: inline-size;
 }
 
 .crepe-host {
@@ -360,6 +369,30 @@
   background: var(--bg-soft);
   border-right: 1px solid var(--border);
   overflow: hidden;
+  position: relative;
+}
+
+/* 大纲宽度拖拽条 */
+.outline__resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  z-index: 10;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.outline__resizer:hover,
+body.is-resizing .outline__resizer {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+body.is-resizing {
+  cursor: col-resize;
+}
+body.is-resizing * {
+  user-select: none !important;
 }
 
 .outline__head {

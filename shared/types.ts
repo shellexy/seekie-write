@@ -122,6 +122,12 @@ export interface MenuCommandPayload {
   command: string
 }
 
+export interface ClipboardPayload {
+  text: string
+  /** 有 HTML 时同时写入富文本剪贴板 */
+  html?: string
+}
+
 export const IPC = {
   // 窗口
   winMinimize: 'win:minimize',
@@ -132,6 +138,8 @@ export const IPC = {
   winSetTitle: 'win:set-title',
   // 菜单
   menuCommand: 'menu:command',
+  // 剪贴板
+  clipboardWrite: 'clipboard:write',
   // 文件
   fileOpenDialog: 'file:open-dialog',
   fileOpenPath: 'file:open-path',

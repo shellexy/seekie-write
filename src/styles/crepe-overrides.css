@@ -134,6 +134,17 @@
   color: #fff;
 }
 
+/*
+ * 编辑区变窄时，Crepe 的块级 +/拖动控件会跑到 .editor-scroll 左边之外被裁掉。
+ * 给正文加一份左侧留白，让控件始终落在可视区域内。
+ */
+@container (max-width: 860px) {
+  .milkdown .ProseMirror {
+    padding-left: 92px;
+    padding-right: 28px;
+  }
+}
+
 .milkdown .ProseMirror h1,
 .milkdown .ProseMirror h2,
 .milkdown .ProseMirror h3,

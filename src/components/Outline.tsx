@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import type { OutlineItem } from '../lib/outline'
 
 interface OutlineProps {
@@ -8,9 +8,19 @@ interface OutlineProps {
   onSelectSection: (item: OutlineItem) => void
   /** 固定在大纲底部的字数 / 保存状态等信息 */
   footer?: ReactNode
+  onResizeStart?: (event: ReactMouseEvent) => void
+  onResizeReset?: () => void
 }
 
-export function Outline({ items, activeId, onScrollTo, onSelectSection, footer }: OutlineProps) {
+export function Outline({
+  items,
+  activeId,
+  onScrollTo,
+  onSelectSection,
+  footer,
+  onResizeStart,
+  onResizeReset,
+}: OutlineProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   // 折叠某一章 = 隐藏落在它 [pos, end) 区间内的所有子标题。
@@ -85,6 +95,15 @@ export function Outline({ items, activeId, onScrollTo, onSelectSection, footer }
       )}
 
       {footer}
+
+      <div
+        className="outline__resizer"
+        onMouseDown={onResizeStart}
+        onDoubleClick={onResizeReset}
+        title="拖动调整宽度，双击恢复默认"
+        role="separator"
+        aria-orientation="vertical"
+      />
     </aside>
   )
 }

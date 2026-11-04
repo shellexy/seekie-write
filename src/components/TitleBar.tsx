@@ -141,17 +141,6 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
           <button className="icon-btn" onClick={actions.onRedo} title="重做（Ctrl+Shift+Z）" aria-label="重做">
             <IconRedo />
           </button>
-          <button className="icon-btn" onClick={actions.onFind} title="查找（Ctrl+F）" aria-label="查找">
-            <IconFind />
-          </button>
-          <button
-            className="icon-btn"
-            onClick={actions.onReplace}
-            title="替换（Ctrl+H）"
-            aria-label="替换"
-          >
-            <IconReplace />
-          </button>
         </div>
 
         <span className="vr" />
@@ -264,6 +253,20 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
 
       {/* 拖拽区：填充剩余空间 */}
       <div className="titlebar__drag" />
+
+      <div className="titlebar__right no-drag">
+        <button className="icon-btn" onClick={actions.onFind} title="查找（Ctrl+F）" aria-label="查找">
+          <IconFind />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={actions.onReplace}
+          title="替换（Ctrl+H）"
+          aria-label="替换"
+        >
+          <IconReplace />
+        </button>
+      </div>
 
       {!sidebarVisible && (
         <div

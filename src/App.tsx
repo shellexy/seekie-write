@@ -11,6 +11,7 @@ import { applyCrepeTheme, applyEditorTypography } from './editor/theme'
 import { TabStore, scrollToPos, selectRange } from './editor/tabs'
 import { EditorSession, type EditorSnapshot } from './editor/session'
 import { runEditorCommand } from './editor/commandBus'
+import { copySelection } from './editor/clipboard'
 import { installTopBarTooltips, stopTopBarTooltips } from './editor/topBarConfig'
 import { setAssetAddedHandler, setAssetTab } from './lib/assets'
 import { saveTab } from './lib/files'
@@ -60,6 +61,7 @@ export default function App() {
     mode: 'find',
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [draggingSidebarWidth, setDraggingSidebarWidth] = useState<number | null>(null)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
     title: string
@@ -536,6 +538,12 @@ export default function App() {
         case 'app:settings':
           setSettingsOpen(true)
           break
+        case 'clipboard:copy-markdown':
+          if (ctx) void copySelection(ctx, 'markdown')
+          break
+        case 'clipboard:copy-html':
+          if (ctx) void copySelection(ctx, 'html')
+          break
         case 'help:about':
           notify('seekie-write 0.1.0 · Electron + Milkdown Crepe')
           break
@@ -664,6 +672,39 @@ export default function App() {
     return () => mq.removeEventListener('change', applyAppearance)
   }, [settings, applyAppearance])
 
+  /* ----------------------------- 侧栏宽度 ----------------------------- */
+
+  const startSidebarResize = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault()
+      const startX = event.clientX
+      const startWidth = useApp.getState().settings.sidebarWidth || 240
+      let latest = startWidth
+      document.body.classList.add('is-resizing')
+      setDraggingSidebarWidth(startWidth)
+
+      const onMove = (e: MouseEvent) => {
+        latest = Math.min(420, Math.max(170, startWidth + e.clientX - startX))
+        setDraggingSidebarWidth(latest)
+      }
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+        document.body.classList.remove('is-resizing')
+        setDraggingSidebarWidth(null)
+        updateSettings({ sidebarWidth: latest })
+      }
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    },
+    [updateSettings],
+  )
+
+  const resetSidebarWidth = useCallback(() => {
+    setDraggingSidebarWidth(null)
+    updateSettings({ sidebarWidth: 240 })
+  }, [updateSettings])
+
   /* ----------------------------- 设置 / 卸载 ----------------------------- */
 
   useEffect(() => {
@@ -680,7 +721,10 @@ export default function App() {
   const outlineActive = activeOutlineId(outline, cursorPos)
 
   return (
-    <div className="app" style={{ ['--sidebar-w' as string]: `${settings.sidebarWidth}px` }}>
+    <div
+      className="app"
+      style={{ ['--sidebar-w' as string]: `${draggingSidebarWidth ?? settings.sidebarWidth}px` }}
+    >
       <TitleBar
         actions={{
           onNew: () => newTabRef.current?.(),
@@ -719,6 +763,8 @@ export default function App() {
               const ctx = ctxRef.current
               if (ctx) selectRange(ctx, item.pos, item.end)
             }}
+            onResizeStart={startSidebarResize}
+            onResizeReset={resetSidebarWidth}
             footer={
               <SidebarFooter
                 onReload={() =>
