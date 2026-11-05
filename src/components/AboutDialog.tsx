@@ -41,7 +41,7 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
       >
         <img className="about-icon" src={appIconUrl} alt="seekie-write" width={200} height={200} />
         <h3 className="dialog__title">seekie-write</h3>
-        <p className="dialog__hint">所见即所得的 Markdown 编辑器 · Linux 优先</p>
+        <p className="dialog__hint">所见即所得的 Markdown 编辑器</p>
         <dl className="about-list">
           <div className="about-list__row">
             <dt>首页</dt>

@@ -1,5 +1,6 @@
-import { useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import type { OutlineItem } from '../lib/outline'
+import { IconChevron } from './Icons'
 
 interface OutlineProps {
   items: OutlineItem[]
@@ -10,6 +11,8 @@ interface OutlineProps {
   footer?: ReactNode
   onResizeStart?: (event: ReactMouseEvent) => void
   onResizeReset?: () => void
+  /** 顶部下拉菜单：智能识别标题 */
+  onSmartHeadings: () => void
 }
 
 export function Outline({
@@ -20,8 +23,28 @@ export function Outline({
   footer,
   onResizeStart,
   onResizeReset,
+  onSmartHeadings,
 }: OutlineProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [smartMenuOpen, setSmartMenuOpen] = useState(false)
+
+  useEffect(() => {
+    if (!smartMenuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('.outline__menu-wrap')) {
+        setSmartMenuOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSmartMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [smartMenuOpen])
 
   // 折叠某一章 = 隐藏落在它 [pos, end) 区间内的所有子标题。
   // 用 end 判断比"找最近的更高级标题"简单，也能正确处理多层嵌套折叠。
@@ -44,7 +67,32 @@ export function Outline({
     <aside className="outline">
       <div className="outline__head">
         <span>大纲</span>
-        {items.length > 0 && <span className="outline__hint">双击选取整章</span>}
+        <div className="outline__head-right">
+          {items.length > 0 && <span className="outline__hint">双击选取整章</span>}
+          <div className="outline__menu-wrap">
+            <button
+              className="outline__more"
+              onClick={() => setSmartMenuOpen((value) => !value)}
+              title="大纲操作"
+              aria-label="大纲操作"
+            >
+              <IconChevron width={12} height={12} />
+            </button>
+            {smartMenuOpen && (
+              <div className="outline-menu">
+                <button
+                  className="outline-menu__item"
+                  onClick={() => {
+                    setSmartMenuOpen(false)
+                    onSmartHeadings()
+                  }}
+                >
+                  智能识别标题
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {items.length === 0 ? (

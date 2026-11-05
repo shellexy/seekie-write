@@ -16,6 +16,7 @@ import WebSocket from 'ws'
 const root = process.cwd()
 const smokeDir = join(root, '.smoke')
 const autoPath = join(smokeDir, 'auto.md')
+const smartPath = join(smokeDir, 'smart.md')
 const samplePath = join(root, 'samples', '示例笔记.md')
 const readmePath = join(root, 'README.md')
 const electronBin = join(root, 'node_modules', '.bin', 'electron')
@@ -111,6 +112,11 @@ try {
   rmSync(smokeDir, { recursive: true, force: true })
   mkdirSync(join(smokeDir, 'config'), { recursive: true })
   writeFileSync(autoPath, '# Auto2\n\nbase line\n', 'utf8')
+  writeFileSync(
+    smartPath,
+    '# 已有标题\n\n第一卷 开端\n\n第一章 测试\n\n1.1 粗体小节\n',
+    'utf8',
+  )
 
   const port = await freePort()
   const env = {
@@ -172,6 +178,25 @@ try {
   }
   const pressEscape = () =>
     cdp.ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+  const pressUndo = async () => {
+    await cdp.call('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      modifiers: 2,
+      key: 'z',
+      code: 'KeyZ',
+      windowsVirtualKeyCode: 90,
+      nativeVirtualKeyCode: 90,
+    })
+    await cdp.call('Input.dispatchKeyEvent', {
+      type: 'keyUp',
+      modifiers: 2,
+      key: 'z',
+      code: 'KeyZ',
+      windowsVirtualKeyCode: 90,
+      nativeVirtualKeyCode: 90,
+    })
+    await delay(500)
+  }
 
   const initial = await tabs()
   check('启动文件只开一个标签', initial.length === 1 && initial[0].name.includes('示例笔记'), JSON.stringify(initial))
@@ -242,6 +267,49 @@ try {
   await delay(1600)
   check('真实修改自动保存', readFileSync(autoPath, 'utf8').includes('SMOKE_OK'))
   check('自动保存后 dirty 清空', (await activeMark()) === '')
+
+  await openPath(smartPath)
+  await cdp.ev(`document.querySelector('.outline__more')?.click()`)
+  await delay(250)
+  await cdp.ev(
+    `[...document.querySelectorAll('.outline-menu__item')].find((b) => b.textContent.includes('智能识别标题'))?.click()`,
+  )
+  await delay(500)
+  const smartRows = await cdp.ev(`[...document.querySelectorAll('.smart-headings__row')].map((row) => ({
+    text: row.querySelector('.smart-headings__text')?.textContent ?? '',
+    checked: row.querySelector('input[type="checkbox"]')?.checked,
+    level: row.querySelector('select')?.value,
+  }))`)
+  check(
+    '智能识别标题候选预览',
+    smartRows.some((row) => row.text.includes('第一卷') && row.checked) &&
+      smartRows.some((row) => row.text.includes('第一章') && row.checked) &&
+      smartRows.some((row) => row.text.includes('粗体小节') && !row.checked),
+    JSON.stringify(smartRows),
+  )
+  const smartWarn = await cdp.ev(`document.querySelector('.smart-headings__warn')?.textContent ?? ''`)
+  check('智能识别提示覆盖现有标题', smartWarn.includes('覆盖现有标题'), smartWarn)
+  await cdp.ev(
+    `[...document.querySelectorAll('.dialog--smart-headings .btn')].find((b) => b.textContent.includes('应用标题'))?.click()`,
+  )
+  await delay(700)
+  const appliedHeadings = await cdp.ev(
+    `[...document.querySelectorAll('.ProseMirror h1, .ProseMirror h2, .ProseMirror h3')].map((h) => h.tagName + ':' + h.textContent)`,
+  )
+  check(
+    '应用识别的标题级别',
+    appliedHeadings.includes('H1:第一卷 开端') && appliedHeadings.includes('H2:第一章 测试'),
+    JSON.stringify(appliedHeadings),
+  )
+  await pressUndo()
+  const undoneHeadings = await cdp.ev(
+    `[...document.querySelectorAll('.ProseMirror h1, .ProseMirror h2, .ProseMirror h3')].map((h) => h.textContent)`,
+  )
+  check(
+    '智能识别一次 Ctrl+Z 撤销',
+    undoneHeadings.length === 1 && undoneHeadings[0] === '已有标题',
+    JSON.stringify(undoneHeadings),
+  )
 
   await clickMore()
   const menuItems = await cdp.ev(

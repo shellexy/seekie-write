@@ -18,6 +18,7 @@ import { saveTab } from './lib/files'
 import { applyImageBase } from './lib/imageBase'
 import { fileName, tabId as makeTabId } from './lib/titleFromPath'
 import { activeOutlineId, type OutlineItem } from './lib/outline'
+import { detectHeadings, type HeadingCandidate } from './lib/headingDetect'
 import {
   buildPrintPreviewHtml,
   buildStandaloneHtml,
@@ -34,6 +35,7 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { TopBarMenu } from './components/TopBarMenu'
 import { SourceCodeDialog } from './components/SourceCodeDialog'
 import { AboutDialog } from './components/AboutDialog'
+import { SmartHeadingsDialog } from './components/SmartHeadingsDialog'
 import { Toast, ConvertingOverlay, ConfirmDialog, ImageModeDialog } from './components/Overlays'
 
 const BLANK_DOC = ''
@@ -83,6 +85,10 @@ export default function App() {
   const [sourceOpen, setSourceOpen] = useState(false)
   const [sourceText, setSourceText] = useState('')
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [smartHeadings, setSmartHeadings] = useState<{
+    open: boolean
+    candidates: HeadingCandidate[]
+  }>({ open: false, candidates: [] })
   const [draggingSidebarWidth, setDraggingSidebarWidth] = useState<number | null>(null)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
@@ -892,6 +898,51 @@ export default function App() {
     [activate, clearContentCheck, flushTimer, notify, patchTab, setConverting],
   )
 
+  const openSmartHeadings = useCallback(() => {
+    const ctx = ctxRef.current
+    if (!ctx) return
+    const view = ctx.get(editorViewCtx)
+    setSmartHeadings({ open: true, candidates: detectHeadings(view.state.doc) })
+  }, [])
+
+  const applySmartHeadings = useCallback(
+    (items: Array<{ pos: number; level: number }>) => {
+      const ctx = ctxRef.current
+      const view = ctx?.get(editorViewCtx)
+      if (!view) return
+      const { state } = view
+      const headingType = state.schema.nodes.heading
+      const paragraphType = state.schema.nodes.paragraph
+      if (!headingType || !paragraphType) return
+      const tr = state.tr
+      let applied = 0
+      // 倒序替换，避免前面节点的替换让后面的 pos 偏移
+      for (const item of [...items].sort((a, b) => b.pos - a.pos)) {
+        if (item.level < 1 || item.level > 6) continue
+        const node = tr.doc.nodeAt(item.pos)
+        if (!node || node.type !== paragraphType) continue
+        // 用 node.content 保留加粗 / 行内代码等 mark，不用纯文本重建
+        tr.replaceWith(
+          item.pos,
+          item.pos + node.nodeSize,
+          headingType.create({ level: item.level }, node.content, node.marks),
+        )
+        applied += 1
+      }
+      setSmartHeadings({ open: false, candidates: [] })
+      if (applied === 0) {
+        notify('没有可应用的标题')
+        return
+      }
+      // 所有替换在同一个事务里，Ctrl+Z 一次撤销
+      view.dispatch(tr)
+      notify(`已应用 ${applied} 个标题，可按 Ctrl+Z 撤销`)
+      // 对话框关闭后把焦点还给编辑器，否则 Ctrl+Z 到不了 ProseMirror
+      requestAnimationFrame(() => view.focus())
+    },
+    [notify],
+  )
+
   /* ----------------------------- 菜单命令 ----------------------------- */
 
   useEffect(() => {
@@ -1164,6 +1215,7 @@ export default function App() {
             }}
             onResizeStart={startSidebarResize}
             onResizeReset={resetSidebarWidth}
+            onSmartHeadings={openSmartHeadings}
             footer={
               <SidebarFooter
                 onReload={() => {
@@ -1237,6 +1289,13 @@ export default function App() {
       />
 
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+
+      <SmartHeadingsDialog
+        open={smartHeadings.open}
+        candidates={smartHeadings.candidates}
+        onClose={() => setSmartHeadings({ open: false, candidates: [] })}
+        onApply={applySmartHeadings}
+      />
 
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 

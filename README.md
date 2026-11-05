@@ -34,6 +34,7 @@
 * **另存命名**：`季度报告.docx` → `季度报告.docx.md`（保留原扩展名，不覆盖源文件）
 * **图片两种保存策略**：内联 base64 / 相对路径（`文档名.assets/`）；base64 保存时先用 `@aurouscia/image-compress` 压成宽度 ≤1280px 的 webp（动图 GIF / webp / SVG 跳过，静态 GIF 会压缩）
 * **大纲侧栏**：单击滚动到标题（自动避开 sticky TopBar），**双击选中整章**（大纲底部的"选中字数"立刻变成该章字数）
+* **智能识别标题**：大纲顶栏下拉 → 智能识别标题；按“第X卷/章/节、一、、1.1、1. ”等正则 + 上下文评分，预览勾选并映射 H1–H6；确认后单事务应用，一次 Ctrl+Z 可撤销
 * **许可协议**：MIT（见 [LICENSE](LICENSE)）
 
 ## 开发
@@ -67,7 +68,7 @@ npm run smoke:only   # 直接用现有 out/ 跑
 SMOKE_KEEP=1 npm run smoke:only  # 保留 .smoke 配置便于排查
 ```
 
-脚本会启动一个随机端口的 Xvfb + Electron，用 CDP 检查：启动文件、重复打开去重、新建空文档、README 相对图片（seekie-local 协议）、撤销回原内容不触发自动保存、真实修改自动保存、⋮ 菜单、关于图标等。共 19 项，完成后自动清理 `.smoke/`。
+脚本会启动一个随机端口的 Xvfb + Electron，用 CDP 检查：启动文件、重复打开去重、新建空文档、README 相对图片（seekie-local 协议）、撤销回原内容不触发自动保存、真实修改自动保存、⋮ 菜单、关于图标等。共 23 项，完成后自动清理 `.smoke/`。
 
 ## 快捷键
 
@@ -174,3 +175,5 @@ samples/               测试用的 .docx / .md
 | 打开 .md 的相对图片                              | ✅ README.md 的 `docs/*.png` 在 dev / 生产构建自然宽 2360；源文本仍为 `docs/...`                              |
 | 标题栏 / 顶栏                                  | ✅ 另存为是下拉箭头（与打开箭头同款）；顶栏图标 SVG 用 `--fg-muted`，分隔线 `--fg-faint`，底边 `color-mix(fg 30%)`           |
 | 打包配置                                      | ✅ electron-builder 26.18.0 `--dir` 成功；`afterPack` 把 `chrome-sandbox` 设为 4755                  |
+| 智能识别标题 | ✅ 7 个候选，默认勾选 3 个；应用 H1/H2/H3 后一次 Ctrl+Z 还原 |
+| 冒烟测试 | ✅ `npm run smoke:only` 23 项全部通过 |
