@@ -227,8 +227,17 @@ function createWindow(): void {
       {
         label: '粘贴为纯文本',
         enabled: params.editFlags.canPaste,
-        click: () =>
-          mainWindow?.webContents.send(IPC.clipboardPastePlain, clipboard.readText()),
+        click: () => {
+          void (async () => {
+            try {
+              // Electron 45 的 readText() 返回 Promise<string>
+              const text = await clipboard.readText()
+              if (text) mainWindow?.webContents.send(IPC.clipboardPastePlain, text)
+            } catch (err) {
+              console.error('[clipboard] 读取纯文本失败', err)
+            }
+          })()
+        },
       },
       { label: '全选', role: 'selectAll', enabled: params.editFlags.canSelectAll },
       { type: 'separator' },

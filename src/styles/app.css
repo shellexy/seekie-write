@@ -900,16 +900,18 @@ body.is-resizing * {
 .dialog--source {
   display: flex;
   flex-direction: column;
-  width: min(880px, 92vw);
-  max-height: 88vh;
+  width: 96vw;
+  height: 92vh;
+  max-height: 92vh;
+  padding: 16px 18px 14px;
 }
 .dialog--about {
   width: min(460px, 90vw);
 }
 .source-view {
   flex: 1 1 auto;
-  height: 52vh;
-  min-height: 220px;
+  height: auto;
+  min-height: 0;
   margin: 10px 0 4px;
   border: 1px solid var(--border);
   border-radius: 8px;
