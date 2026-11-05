@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { EditorState } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import { EditorView, lineNumbers } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
@@ -31,8 +31,15 @@ const sourceTheme = EditorView.theme({
     lineHeight: '1.65',
     overflow: 'auto',
   },
-  '.cm-content': { padding: '14px 16px', caretColor: 'transparent' },
+  '.cm-content': { padding: '14px 16px 14px 8px', caretColor: 'transparent' },
   '.cm-line': { padding: '0' },
+  '.cm-gutters': {
+    backgroundColor: 'var(--bg-soft)',
+    color: 'var(--fg-faint)',
+    border: 'none',
+    borderRight: '1px solid var(--border)',
+  },
+  '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px 0 6px' },
   '&.cm-focused': { outline: 'none' },
   '.cm-selectionBackground, ::selection': {
     backgroundColor: 'var(--selection, rgba(160, 120, 60, 0.25)) !important',
@@ -59,6 +66,7 @@ export function SourceCodeDialog({
         doc: markdownText,
         extensions: [
           markdown(),
+          lineNumbers(),
           EditorView.lineWrapping,
           EditorState.readOnly.of(true),
           EditorView.editable.of(false),

@@ -101,7 +101,8 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "${productName}-${version}-setup.${ext}"
+      "artifactName": "${productName}-${version}-setup.${ext}",
+      "icon": "build/icon.ico"
     },
     "mac": {
       "target": [

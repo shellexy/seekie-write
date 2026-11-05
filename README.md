@@ -1,5 +1,7 @@
 # seekie-write
 
+[![Version](https://img.shields.io/github/v/release/shellexy/seekie-write?label=version&style=flat-square)](https://github.com/shellexy/seekie-write/releases)
+
 类 Typora 的所见即所得 Markdown 编辑器。Electron 45 + Milkdown Crepe 7.23。
 
 ![浅色](docs/screenshot-light.png)
@@ -11,6 +13,7 @@
 * **顶部工具栏**：Crepe TopBar（默认关闭的特性，这里显式打开），纯图标 + 鼠标悬浮提示，分组为
   `段落·标题一~六` │ `粗体 斜体 删除线 行内代码` │ `项目符号 有序列表` │ `插入图片 表格 分割线 引用 代码块` │ `清除格式` │ 最右侧 `⋮`
 * **顶栏 ⋮ 菜单**：撤销 / 重做 / 查找 / 替换 / 查看源码 / 设置 / 关于；自定义标题栏只保留文件操作与标签条
+* **查看源码**：只读 CodeMirror，Markdown 语法高亮 + 行号，可复制源码
 * **自定义标题栏**（Linux 优先，`frame:false`）：新建 / 打开（右侧小箭头展开最近文件）/ 保存 / 另存为·导出下拉、标签条、自绘窗口三键
 * **标签条**：用满标题栏剩余宽度；放不下时可用滚轮横向滚动，或 `Ctrl+Tab` / `Ctrl+Shift+Tab` 循环切换，切到的标签会自动滚到可见区域；右侧「全部标签」下拉可直接切换或关闭任意标签
 * **启动恢复**：默认只恢复草稿；设置里勾选“启动时恢复上次打开的文件”后，才会连同上次有落盘路径的标签一起重新打开
@@ -49,6 +52,8 @@ npm run dist         # Linux AppImage + deb
 ```
 
 打包配置都在 `package.json` 的 `build` 字段（electron-builder 26）：`build/icon.png`、Linux 桌面入口 / MIME、AppImage zstd、`afterPack` 沙箱权限钩子等。`afterPack` 是 electron-builder 的**顶层钩子**，所以放在 `build.afterPack` 而不是 `build.linux.afterPack`。
+
+GitHub Actions（[build.yml](.github/workflows/build.yml)）在 `master` 推送时构建 deb / AppImage / exe 并上传 artifact；推送 `v*` tag 会自动创建一个 GitHub Release，附上三平台安装包。
 
 Linux 上跑无边框窗口需要的系统库：
 
@@ -179,4 +184,5 @@ samples/               测试用的 .docx / .md
 | 智能识别标题 | ✅ 已有标题按原级别显示为“已有”；7 个候选，默认勾选 3 个；应用 H1/H2/H3 后一次 Ctrl+Z 还原 |
 | 纯文本 / HTML 打开 | ✅ `.txt` 单换行保留为硬换行；HTML `<h1>` / 列表正常转 Markdown |
 | 纯文本粘贴 | ✅ 多行粘贴保留换行，不再折叠成一行 |
+| 查看源码 | ✅ CodeMirror 只读、Markdown 高亮、带行号 |
 | 冒烟测试 | ✅ `npm run smoke:only` 27 项全部通过 |
