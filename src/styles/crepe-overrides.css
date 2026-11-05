@@ -27,7 +27,7 @@
   z-index: 20;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border-strong);
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 30%, transparent);
   padding: 0 10px;
   min-height: var(--topbar-h);
   gap: 2px;
@@ -65,6 +65,10 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+/* Crepe 默认把图标 SVG 的 color 设成 --crepe-color-outline（很浅），这里覆盖成正文色 */
+.milkdown .milkdown-top-bar .top-bar-item:not(.active) svg {
+  color: var(--fg);
+}
 
 /* 图片图标线条偏细、在浅色背景下辨识度低，单独加深 */
 .milkdown .milkdown-top-bar .top-bar-item[data-key='image'] {
@@ -75,7 +79,7 @@
 }
 
 .milkdown .milkdown-top-bar .top-bar-divider {
-  background: var(--border-strong);
+  background: var(--fg-faint);
   height: 18px;
   margin: 0 6px;
 }

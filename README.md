@@ -157,5 +157,5 @@ samples/               测试用的 .docx / .md
 | 导出 PDF | ✅ `%PDF-`，`printBackground: true`；打印样式隐藏标题栏 / 大纲 / 顶栏，代码块 `pre-wrap` |
 | 打印预览 | ✅ 独立预览窗口，关闭主窗口时一并退出 |
 | 边界：base64 压缩 | ✅ 示例 docx 的 PNG 保存为 webp；动图 GIF / webp / SVG 跳过，静态 GIF 压缩 |
-| 标题栏 / 顶栏 | ✅ 另存为是下拉箭头（与打开箭头同款）；顶栏分隔线 / 底边用 `--border-strong`，图标用 `--fg` |
+| 标题栏 / 顶栏 | ✅ 另存为是下拉箭头（与打开箭头同款）；顶栏图标 SVG 强制 `--fg`，分隔线 `--fg-faint`，底边 `color-mix(fg 30%)` |
 | 打包配置 | ✅ electron-builder 26.18.0 `--dir` 成功；`afterPack` 把 `chrome-sandbox` 设为 4755 |
