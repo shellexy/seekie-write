@@ -53,7 +53,7 @@ npm run dist         # Linux AppImage + deb
 
 打包配置都在 `package.json` 的 `build` 字段（electron-builder 26）：`build/icon.png`、Linux 桌面入口 / MIME、AppImage zstd、`afterPack` 沙箱权限钩子等。`afterPack` 是 electron-builder 的**顶层钩子**，所以放在 `build.afterPack` 而不是 `build.linux.afterPack`。
 
-GitHub Actions（[build.yml](.github/workflows/build.yml)）在 `master` 推送时构建 deb / AppImage / exe 并上传 artifact；推送 `v*` tag 会自动创建一个 GitHub Release，附上三平台安装包。
+GitHub Actions（[build.yml](.github/workflows/build.yml)）只在推送 `v*` tag 时触发：构建 deb / AppImage / exe，并自动创建 GitHub Release。普通 commit 不触发构建或发版。
 
 Linux 上跑无边框窗口需要的系统库：
 
@@ -158,7 +158,7 @@ samples/               测试用的 .docx / .md
 | TopBar 插入                                 | ✅ 图片（`seekie-asset://` 正常渲染）、3×3 表格、分割线、引用、代码块                                                |
 | 标题栏                                       | ✅ 新建 / 打开+最近文件 / 保存 / 另存为·导出下拉；不再有撤销 / 重做 / 查找 / 替换 / 设置                                      |
 | 顶栏 ⋮ 菜单                                   | ✅ 最右侧，右边缘距窗口 12px；撤销 / 重做 / 查找 / 替换 / 查看源码 / 设置 / 关于全部可用                                      |
-| 新建空白标签                                    | ✅ 正文为空，标签临时名为“新文档-N”，placeholder 为中文提示                                                        |
+| 新建空白标签                                    | ✅ 正文为空，标签临时名为“新文档-N”，不显示 placeholder                                                        |
 | 查看源码                                      | ✅ 对话框内 CodeMirror 只读高亮当前 Markdown 源码                                                          |
 | 关于                                        | ✅ 首页 / 版本 0.1.0 / Electron 45.2.2 / Node.js 24.22.2 / MIT；`build/icon.png` 显示为 200×200（源 512） |
 | 启动文件拉取                                    | ✅ 渲染层就绪后主动取启动参数文件，生产构建打开准确                                                                    |

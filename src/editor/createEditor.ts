@@ -57,7 +57,6 @@ export function createEditor(options: CreateEditorOptions): Crepe {
       [CrepeFeature.TopBar]: { buildTopBar },
       // 图片统一进内存仓库，保存时按设置决定 base64 / 相对路径
       [CrepeFeature.CodeMirror]: { theme: codeMirrorTheme },
-      [CrepeFeature.Placeholder]: { text: '开始输入，或从右上角 ⋮ 打开菜单…' },
       [CrepeFeature.ImageBlock]: {
         onUpload: (file: File) => putAsset(tabId, file),
         inlineOnUpload: (file: File) => putAsset(tabId, file),

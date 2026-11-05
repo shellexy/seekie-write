@@ -71,7 +71,7 @@ export const crepeFeatures: Partial<Record<CrepeFeature, boolean>> = {
   [CrepeFeature.ImageBlock]: true,
   [CrepeFeature.BlockEdit]: true,
   [CrepeFeature.LinkTooltip]: true,
-  [CrepeFeature.Placeholder]: true,
+  [CrepeFeature.Placeholder]: false,
   [CrepeFeature.Cursor]: true,
 }
 
