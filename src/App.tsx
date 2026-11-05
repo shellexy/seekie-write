@@ -61,6 +61,14 @@ export default function App() {
   /** 同一标签同时只允许一个保存请求，避免自己写的文件被下一次保存误判成外部修改 */
   const inFlightSaves = useRef<Set<string>>(new Set())
   const pendingSaves = useRef<Map<string, SaveKind>>(new Map())
+  /** 每个标签最近一次打开/保存时的 Markdown；内容回到基线就不算 dirty */
+  const savedMarkdown = useRef<Map<string, string>>(new Map())
+  /** 停止输入后延迟比对一次 Markdown，撤销回原内容时能及时清掉 dirty */
+  const contentCheckTimers = useRef<Map<string, number>>(new Map())
+  /** 正在打开的绝对路径，避免双击 / 二次实例并发打开出两个标签 */
+  const openingPaths = useRef<Set<string>>(new Set())
+  /** 切换 view state 期间插件可能 dispatch，不能把这种事务当成用户编辑 */
+  const switchingTab = useRef(false)
   const untitledSeq = useRef(0)
 
   const [outline, setOutline] = useState<OutlineItem[]>([])
@@ -96,6 +104,14 @@ export default function App() {
     if (timer != null) {
       window.clearTimeout(timer)
       timers.delete(id)
+    }
+  }, [])
+
+  const clearContentCheck = useCallback((id: string) => {
+    const timer = contentCheckTimers.current.get(id)
+    if (timer != null) {
+      window.clearTimeout(timer)
+      contentCheckTimers.current.delete(id)
     }
   }, [])
 
@@ -140,10 +156,29 @@ export default function App() {
       inFlightSaves.current.add(id)
 
       try {
+        const markdown = store.markdownOf(id)
+        const baseline = savedMarkdown.current.get(id)
+
+        // 内容与上次保存完全一致：不写盘、不更新 mtime，清掉误报的 dirty
+        if (
+          kind !== 'saveAs' &&
+          !overwrite &&
+          baseline !== undefined &&
+          markdown === baseline &&
+          (tab.savePath || kind === 'auto')
+        ) {
+          clearContentCheck(id)
+          pendingSaves.current.delete(id)
+          patchTab(id, { dirty: false, saveStatus: 'idle', saveMessage: undefined })
+          return
+        }
+
         // 没有落盘路径（新建 / 转换后未另存）时，自动保存只写草稿区，
         // 绝不弹“另存为”对话框打断输入。
         if (!tab.savePath && kind === 'auto') {
           await saveDraftIfNeeded(id)
+          savedMarkdown.current.set(id, markdown)
+          clearContentCheck(id)
           patchTab(id, {
             dirty: pendingSaves.current.has(id),
             saveStatus: 'idle',
@@ -152,7 +187,6 @@ export default function App() {
           return
         }
 
-        const markdown = store.markdownOf(id)
         patchTab(id, { saveStatus: 'saving' })
         const result = await saveTab({
           tabId: id,
@@ -168,6 +202,8 @@ export default function App() {
         })
 
         if (result.status === 'saved' && result.path) {
+          savedMarkdown.current.set(id, markdown)
+          clearContentCheck(id)
           patchTab(id, {
             savePath: result.path,
             saveStatus: 'saved',
@@ -203,7 +239,7 @@ export default function App() {
         }
       }
     },
-    [flushTimer, notify, patchTab, saveDraftIfNeeded],
+    [clearContentCheck, flushTimer, notify, patchTab, saveDraftIfNeeded],
   )
 
   const scheduleAutosave = useCallback(
@@ -223,13 +259,38 @@ export default function App() {
     [doSave],
   )
 
+  const scheduleContentCheck = useCallback(
+    (id: string) => {
+      clearContentCheck(id)
+      const timer = window.setTimeout(() => {
+        contentCheckTimers.current.delete(id)
+        if (inFlightSaves.current.has(id)) return
+        const store = tabStoreRef.current
+        if (!store) return
+        const baseline = savedMarkdown.current.get(id)
+        if (baseline === undefined) return
+        // 用序列化后的 Markdown 比较：ProseMirror 的 Node.eq 会把结构相同但
+        // 文本相同、节点属性略有差异的 doc 判成“改了”。
+        if (store.markdownOf(id) === baseline) {
+          flushTimer(id)
+          const tab = useApp.getState().tabs.find((item) => item.id === id)
+          if (tab?.dirty) patchTab(id, { dirty: false })
+        }
+      }, 250)
+      contentCheckTimers.current.set(id, timer)
+    },
+    [clearContentCheck, flushTimer, patchTab],
+  )
+
   const markDirty = useCallback(() => {
+    if (switchingTab.current) return
     const id = useApp.getState().activeId
     const tab = tabById(id)
     if (!id || !tab) return
     if (!tab.dirty) patchTab(id, { dirty: true })
     scheduleAutosave(id)
-  }, [patchTab, scheduleAutosave])
+    scheduleContentCheck(id)
+  }, [patchTab, scheduleAutosave, scheduleContentCheck])
 
   const saveActive = useCallback(
     (kind: 'manual' | 'saveAs' = 'manual') => {
@@ -375,6 +436,7 @@ export default function App() {
       if (store.has(draft.tabId)) continue
       const state = store.createStateFromMarkdown(draft.markdown)
       store.register(draft.tabId, state)
+      savedMarkdown.current.set(draft.tabId, store.markdownOf(draft.tabId))
       useApp.getState().upsertTab({
         id: draft.tabId,
         title: draft.title,
@@ -430,6 +492,7 @@ export default function App() {
     untitledSeq.current += 1
     const state = store.createStateFromMarkdown(BLANK_DOC)
     store.register(id, state)
+    savedMarkdown.current.set(id, store.markdownOf(id))
     useApp.getState().upsertTab({
       id,
       title: `新文档-${untitledSeq.current}`,
@@ -521,14 +584,20 @@ export default function App() {
   /* ----------------------------- 切换 / 关闭标签 ----------------------------- */
 
   const activate = useCallback(
-    (id: string) => {
+    (id: string, force = false) => {
       const store = tabStoreRef.current
       if (!store || !store.has(id)) return
+      if (!force && useApp.getState().activeId === id) return
       const tab = useApp.getState().tabs.find((item) => item.id === id)
       // 相对图片按当前文件目录解析；必须在 view 切到该标签之前设置 base
       applyImageBase(tab ? (tab.savePath ?? tab.sourcePath) : null)
-      store.activate(id)
-      useApp.getState().setActive(id)
+      switchingTab.current = true
+      try {
+        store.activate(id)
+        useApp.getState().setActive(id)
+      } finally {
+        switchingTab.current = false
+      }
       setAssetTab(id)
       sessionRef.current?.refresh(true)
     },
@@ -560,6 +629,8 @@ export default function App() {
       const finish = () => {
         void saveDraftIfNeeded(id).then(() => {
           tabStoreRef.current?.drop(id)
+          savedMarkdown.current.delete(id)
+          clearContentCheck(id)
           useApp.getState().removeTab(id)
           void api.asset.drop(id)
           // 关闭标签不应在会话里留下草稿，否则下次启动会把它“复活”
@@ -589,6 +660,8 @@ export default function App() {
             setConfirmState((c) => ({ ...c, open: false }))
             flushTimer(id)
             tabStoreRef.current?.drop(id)
+            savedMarkdown.current.delete(id)
+          clearContentCheck(id)
             useApp.getState().removeTab(id)
             void api.asset.drop(id)
             void api.draft.drop(id)
@@ -601,7 +674,7 @@ export default function App() {
       }
       finish()
     },
-    [activate, flushTimer, newTab, saveDraftIfNeeded],
+    [activate, clearContentCheck, flushTimer, newTab, saveDraftIfNeeded],
   )
 
   /** 批量关闭（关闭其他 / 关闭右侧共用）：有未保存改动时统一确认一次 */
@@ -616,6 +689,8 @@ export default function App() {
           flushTimer(tab.id)
           pendingSaves.current.delete(tab.id)
           tabStoreRef.current?.drop(tab.id)
+          savedMarkdown.current.delete(tab.id)
+          clearContentCheck(tab.id)
           useApp.getState().removeTab(tab.id)
           void api.asset.drop(tab.id)
           void api.draft.drop(tab.id)
@@ -648,7 +723,7 @@ export default function App() {
       }
       closeNow()
     },
-    [activate, flushTimer, newTab],
+    [activate, clearContentCheck, flushTimer, newTab],
   )
 
   const closeOtherTabs = useCallback(
@@ -678,11 +753,21 @@ export default function App() {
   const openPath = useCallback(
     async (path: string) => {
       const store = tabStoreRef.current
-      if (!store) return
+      if (!store || !path) return
+      const absolute = await api.file.resolve(path)
+      const already = useApp
+        .getState()
+        .tabs.find((tab) => tab.savePath === absolute || tab.sourcePath === absolute)
+      if (already) {
+        activate(already.id)
+        return
+      }
+      if (openingPaths.current.has(absolute)) return
+      openingPaths.current.add(absolute)
       const id = makeTabId()
-      setConverting(true, `正在打开 ${fileName(path)}…`)
+      setConverting(true, `正在打开 ${fileName(absolute)}…`)
       try {
-        const result = await api.file.read(path, id)
+        const result = await api.file.read(absolute, id)
         if (!result.ok) {
           notify(result.error ?? '打开失败', 'error')
           return
@@ -699,11 +784,15 @@ export default function App() {
           const blankId = existing[0].id
           flushTimer(blankId)
           store.drop(blankId)
+          savedMarkdown.current.delete(blankId)
+          clearContentCheck(blankId)
           useApp.getState().removeTab(blankId)
           void api.asset.drop(blankId)
           void api.draft.drop(blankId)
         }
-        store.register(id, store.createStateFromMarkdown(result.markdown))
+        const state = store.createStateFromMarkdown(result.markdown)
+        store.register(id, state)
+        savedMarkdown.current.set(id, store.markdownOf(id))
         useApp.getState().upsertTab({
           id,
           title: result.title,
@@ -742,12 +831,66 @@ export default function App() {
           )
         }
       } finally {
+        openingPaths.current.delete(absolute)
         setConverting(false)
       }
     },
-    [activate, flushTimer, notify, setConverting],
+    [activate, clearContentCheck, flushTimer, notify, setConverting],
   )
   openPathRef.current = openPath
+
+  /** 冲突提示里的“重新载入”：读回同一个文件，替换当前标签而不是再开一个 */
+  const reloadTab = useCallback(
+    async (id: string) => {
+      const store = tabStoreRef.current
+      const tab = useApp.getState().tabs.find((item) => item.id === id)
+      if (!store || !tab) return
+      const path = tab.savePath ?? tab.sourcePath
+      if (!path) {
+        notify('这个标签还没有落盘文件，无法重新载入', 'error')
+        return
+      }
+      if (inFlightSaves.current.has(id)) {
+        notify('正在保存，请稍后再重新载入', 'error')
+        return
+      }
+      flushTimer(id)
+      clearContentCheck(id)
+      pendingSaves.current.delete(id)
+      setConverting(true, `正在重新载入 ${fileName(path)}…`)
+      try {
+        const result = await api.file.read(path, id)
+        if (!result.ok) {
+          notify(result.error ?? '重新载入失败', 'error')
+          return
+        }
+        const state = store.createStateFromMarkdown(result.markdown)
+        store.register(id, state)
+        savedMarkdown.current.set(id, store.markdownOf(id))
+        patchTab(id, {
+          title: result.title,
+          dirty: false,
+          sourcePath: result.sourcePath,
+          sourceExt: result.sourceExt,
+          savePath: result.converted ? null : result.sourcePath,
+          converted: result.converted,
+          draft: result.converted,
+          saveStatus: 'idle',
+          saveMessage: undefined,
+          conflict: false,
+          assets: result.assets,
+          mtime: result.sourcePath ? await api.file.mtime(result.sourcePath) : null,
+        })
+        void api.asset.drop(id)
+        if (result.assets.length) await api.asset.register(id, result.assets)
+        activate(id, true)
+        notify('已重新载入')
+      } finally {
+        setConverting(false)
+      }
+    },
+    [activate, clearContentCheck, flushTimer, notify, patchTab, setConverting],
+  )
 
   /* ----------------------------- 菜单命令 ----------------------------- */
 
@@ -1023,9 +1166,9 @@ export default function App() {
             onResizeReset={resetSidebarWidth}
             footer={
               <SidebarFooter
-                onReload={() =>
-                  active && void openPath(active.sourcePath ?? active.savePath ?? '')
-                }
+                onReload={() => {
+                  if (active) void reloadTab(active.id)
+                }}
                 onKeepMine={() => {
                   if (!active) return
                   patchTab(active.id, { conflict: false })

@@ -183,6 +183,7 @@ export const IPC = {
   // 文件
   fileOpenDialog: 'file:open-dialog',
   fileOpenPath: 'file:open-path',
+  fileResolve: 'file:resolve',
   fileReadMarkdown: 'file:read-markdown',
   fileSave: 'file:save',
   fileReveal: 'file:reveal',

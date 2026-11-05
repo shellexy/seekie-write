@@ -388,6 +388,7 @@ function registerIpc(): void {
     if (mainWindow) mainWindow.webContents.send(IPC.openFileRequest, path)
     return true
   })
+  ipcMain.handle(IPC.fileResolve, async (_e, path: string) => resolve(path))
   ipcMain.handle(IPC.fileReadMarkdown, async (_e, path: string, tabId: string) => {
     // 统一成绝对路径：标签的 savePath 会用于冲突检测、复制路径、在文件夹中显示
     const result = await openDocument(resolve(path), tabId)

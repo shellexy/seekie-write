@@ -35,6 +35,7 @@ const mock = {
   file: {
     pickOpen: async () => null,
     openPath: async () => false,
+    resolve: async (path: string) => path,
     read: async (path: string): Promise<OpenResult> => ({
       ok: false,
       error: `浏览器预览模式无法读取本地文件：${path}`,
@@ -128,6 +129,7 @@ export interface SeekieApi {
   file: {
     pickOpen: () => Promise<string | null>
     openPath: (path: string) => Promise<boolean>
+    resolve: (path: string) => Promise<string>
     read: (path: string, tabId: string) => Promise<OpenResult>
     save: (req: SaveRequest) => Promise<SaveResult>
     export: (req: ExportRequest) => Promise<string | null>

@@ -35,6 +35,7 @@ const api = {
   file: {
     pickOpen: (): Promise<string | null> => ipcRenderer.invoke(IPC.fileOpenDialog),
     openPath: (path: string): Promise<boolean> => ipcRenderer.invoke(IPC.fileOpenPath, path),
+    resolve: (path: string): Promise<string> => ipcRenderer.invoke(IPC.fileResolve, path),
     read: (path: string, tabId: string): Promise<OpenResult> =>
       ipcRenderer.invoke(IPC.fileReadMarkdown, path, tabId),
     save: (req: SaveRequest): Promise<SaveResult> => ipcRenderer.invoke(IPC.fileSave, req),
