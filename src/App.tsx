@@ -610,7 +610,20 @@ export default function App() {
     (id: string, force = false) => {
       const store = tabStoreRef.current
       if (!store || !store.has(id)) return
-      if (!force && useApp.getState().activeId === id) return
+      const focusEditor = () => {
+        const ctx = ctxRef.current
+        if (!ctx) return
+        try {
+          ctx.get(editorViewCtx).focus()
+        } catch {
+          /* 编辑器还没准备好 */
+        }
+      }
+      if (!force && useApp.getState().activeId === id) {
+        // 重复点击当前标签 / 重复打开同一文件时也把焦点放回正文
+        requestAnimationFrame(focusEditor)
+        return
+      }
       const tab = useApp.getState().tabs.find((item) => item.id === id)
       // 相对图片按当前文件目录解析；必须在 view 切到该标签之前设置 base
       applyImageBase(tab ? (tab.savePath ?? tab.sourcePath) : null)
@@ -623,6 +636,8 @@ export default function App() {
       }
       setAssetTab(id)
       sessionRef.current?.refresh(true)
+      // 新建 / 切换 / 打开标签后自动把焦点放回编辑区
+      requestAnimationFrame(focusEditor)
     },
     [],
   )
