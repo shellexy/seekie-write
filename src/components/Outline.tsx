@@ -13,6 +13,8 @@ interface OutlineProps {
   onResizeReset?: () => void
   /** 顶部下拉菜单：智能识别标题 */
   onSmartHeadings: () => void
+  /** 正文有内容但还没有标题时，在大纲空状态里显示入口 */
+  canDetect: boolean
 }
 
 export function Outline({
@@ -24,6 +26,7 @@ export function Outline({
   onResizeStart,
   onResizeReset,
   onSmartHeadings,
+  canDetect,
 }: OutlineProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [smartMenuOpen, setSmartMenuOpen] = useState(false)
@@ -100,6 +103,14 @@ export function Outline({
           还没有标题。
           <br />
           用 <b>标题 1/2/3</b> 插入后，这里会自动生成大纲。
+          {canDetect && (
+            <>
+              <br />
+              <button className="outline__empty-link" onClick={onSmartHeadings}>
+                智能识别标题
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className="outline__list">

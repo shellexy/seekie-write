@@ -3,10 +3,13 @@ import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'n
 import { basename, dirname, extname, join, relative } from 'node:path'
 import type { DocAsset, OpenResult, SaveRequest, SaveResult } from '../../shared/types'
 import { convertToMarkdown, isConvertible, isMarkdownLike, suggestedSavePath } from './anydoc'
+import { convertHtmlFile, convertPlainTextFile } from './textConvert'
 import * as assets from './assetStore'
 import { getSettings, setSettings } from './settings'
 
 const ASSET_RE = /seekie-asset:\/\/[^/\s)]+\/(\d+)/g
+
+const HTML_EXT = new Set(['.html', '.htm', '.xhtml', '.html4', '.html5', '.mhtml', '.mht'])
 
 /** 打开文件：markdown 直接读，其它走 anydoc 转换 */
 export async function openDocument(filePath: string, tabId: string): Promise<OpenResult> {
@@ -40,24 +43,69 @@ export async function openDocument(filePath: string, tabId: string): Promise<Ope
     }
   }
 
-  if (!isConvertible(filePath)) {
-    return {
-      ok: false,
-      error: `暂不支持该格式（${ext || '无扩展名'}）。可转换：Word / PowerPoint / Excel / OpenDocument / RTF / EPUB / CSV / PDF。`,
-      converted: false,
-      sourcePath: filePath,
-      sourceExt: ext,
-      suggestedSavePath: null,
-      markdown: '',
-      assets: [],
-      title: basename(filePath),
+  if (HTML_EXT.has(ext)) {
+    try {
+      const markdown = await convertHtmlFile(filePath)
+      return {
+        ok: true,
+        converted: true,
+        sourcePath: filePath,
+        sourceExt: ext,
+        suggestedSavePath: suggestedSavePath(filePath),
+        markdown,
+        assets: [],
+        inlinedImages: 0,
+        title: `${basename(filePath)}.md`,
+      }
+    } catch (err) {
+      return {
+        ok: false,
+        error: `HTML 转换失败：${(err as Error).message}`,
+        converted: true,
+        sourcePath: filePath,
+        sourceExt: ext,
+        suggestedSavePath: null,
+        markdown: '',
+        assets: [],
+        title: basename(filePath),
+      }
     }
   }
 
+  if (isConvertible(filePath)) {
+    try {
+      const { markdown, assets: docAssets, inlinedImages } = await convertToMarkdown(filePath, tabId, {
+        inlineImages: getSettings().openInlineImages,
+      })
+      return {
+        ok: true,
+        converted: true,
+        sourcePath: filePath,
+        sourceExt: ext,
+        suggestedSavePath: suggestedSavePath(filePath),
+        markdown,
+        assets: docAssets,
+        inlinedImages,
+        title: `${basename(filePath)}.md`,
+      }
+    } catch (err) {
+      return {
+        ok: false,
+        error: (err as Error).message,
+        converted: true,
+        sourcePath: filePath,
+        sourceExt: ext,
+        suggestedSavePath: null,
+        markdown: '',
+        assets: [],
+        title: basename(filePath),
+      }
+    }
+  }
+
+  // 其它格式：纯文本 / 源码 → Markdown（@mdgate/text）
   try {
-    const { markdown, assets: docAssets, inlinedImages } = await convertToMarkdown(filePath, tabId, {
-      inlineImages: getSettings().openInlineImages,
-    })
+    const markdown = await convertPlainTextFile(filePath)
     return {
       ok: true,
       converted: true,
@@ -65,15 +113,15 @@ export async function openDocument(filePath: string, tabId: string): Promise<Ope
       sourceExt: ext,
       suggestedSavePath: suggestedSavePath(filePath),
       markdown,
-      assets: docAssets,
-      inlinedImages,
+      assets: [],
+      inlinedImages: 0,
       title: `${basename(filePath)}.md`,
     }
   } catch (err) {
     return {
       ok: false,
-      error: (err as Error).message,
-      converted: true,
+      error: `暂不支持该格式（${ext || '无扩展名'}），作为文本转换也失败了：${(err as Error).message}`,
+      converted: false,
       sourcePath: filePath,
       sourceExt: ext,
       suggestedSavePath: null,

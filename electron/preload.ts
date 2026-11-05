@@ -79,6 +79,14 @@ const api = {
   clipboard: {
     write: (payload: ClipboardPayload): Promise<boolean> =>
       ipcRenderer.invoke(IPC.clipboardWrite, payload),
+    onPastePlain: (cb: (text: string) => void) => {
+      const listener = (_e: unknown, text: string) => cb(text)
+      ipcRenderer.on(IPC.clipboardPastePlain, listener)
+      return () => ipcRenderer.removeListener(IPC.clipboardPastePlain, listener)
+    },
+  },
+  text: {
+    toMarkdown: (text: string): Promise<string> => ipcRenderer.invoke(IPC.textToMarkdown, text),
   },
   app: {
     info: (): Promise<AppInfo> => ipcRenderer.invoke(IPC.appInfo),

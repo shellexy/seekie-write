@@ -4,6 +4,8 @@ import type { HeadingCandidate } from '../lib/headingDetect'
 interface Row extends HeadingCandidate {
   checked: boolean
   level: number
+  /** 已有标题的原始级别；新段落为 0 */
+  originalLevel: number
 }
 
 /**
@@ -25,7 +27,14 @@ export function SmartHeadingsDialog({
 
   useEffect(() => {
     if (!open) return
-    setRows(candidates.map((item) => ({ ...item, checked: item.checked, level: item.level })))
+    setRows(
+      candidates.map((item) => ({
+        ...item,
+        checked: item.checked,
+        level: item.level,
+        originalLevel: item.existing ? item.level : 0,
+      })),
+    )
   }, [open, candidates])
 
   useEffect(() => {
@@ -40,6 +49,13 @@ export function SmartHeadingsDialog({
   const selected = useMemo(
     () => rows.filter((row) => row.checked && row.level >= 1 && row.level <= 6),
     [rows],
+  )
+  const willChange = useMemo(
+    () =>
+      selected.some((row) =>
+        row.existing ? row.level !== row.originalLevel : row.level >= 1,
+      ),
+    [selected],
   )
 
   if (!open) return null
@@ -60,7 +76,7 @@ export function SmartHeadingsDialog({
           系统根据正则特征推测，请确认后转换，转换可撤销。
         </p>
         <p className="smart-headings__warn">
-          此操作会覆盖现有标题层级；已有标题不会被删除，但大纲会按新结果重排。
+          此操作会覆盖现有标题层级；已有标题会按原级别进入预览，调整级别后才会改写，大纲会按新结果重排。
         </p>
 
         {rows.length === 0 ? (
@@ -70,7 +86,8 @@ export function SmartHeadingsDialog({
         ) : (
           <>
             <div className="smart-headings__meta">
-              共 {rows.length} 个候选，已勾选 {selected.length} 个
+              共 {rows.length} 个候选（含已有标题 {rows.filter((row) => row.existing).length} 个），已勾选{' '}
+              {selected.length} 个
             </div>
             <div className="smart-headings__list">
               {rows.map((row) => (
@@ -88,8 +105,11 @@ export function SmartHeadingsDialog({
                   <span className="smart-headings__text" title={row.text}>
                     {row.text}
                   </span>
-                  <span className="smart-headings__score" title="规则基础权重 + 上下文得分">
-                    {row.score} 分
+                  <span
+                    className="smart-headings__score"
+                    title={row.existing ? '文档中已有的标题' : '规则基础权重 + 上下文得分'}
+                  >
+                    {row.existing ? '已有' : `${row.score} 分`}
                   </span>
                   <select
                     value={row.level}
@@ -116,7 +136,7 @@ export function SmartHeadingsDialog({
           </button>
           <button
             className="btn btn--primary"
-            disabled={selected.length === 0}
+            disabled={!willChange}
             onClick={() => onApply(selected.map((row) => ({ pos: row.pos, level: row.level })))}
           >
             应用标题

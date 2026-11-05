@@ -597,6 +597,17 @@ body.is-resizing * {
 .outline-menu__item:hover {
   background: var(--hover);
 }
+.outline__empty-link {
+  padding: 0;
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.outline__empty-link:hover {
+  color: var(--accent);
+  opacity: 0.8;
+}
 .outline__hint {
   font-size: 10px;
   letter-spacing: 0;

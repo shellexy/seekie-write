@@ -180,6 +180,8 @@ export const IPC = {
   menuCommand: 'menu:command',
   // 剪贴板
   clipboardWrite: 'clipboard:write',
+  clipboardPastePlain: 'clipboard:paste-plain',
+  textToMarkdown: 'text:to-markdown',
   // 文件
   fileOpenDialog: 'file:open-dialog',
   fileOpenPath: 'file:open-path',

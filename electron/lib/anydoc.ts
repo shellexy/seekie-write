@@ -3,7 +3,7 @@ import { basename, dirname, extname, join } from 'node:path'
 import type { DocAsset } from '../../shared/types'
 import { extFor } from './assetStore'
 
-const MARKDOWN_EXT = new Set(['.md', '.markdown', '.mdown', '.mkd', '.mdx', '.txt'])
+const MARKDOWN_EXT = new Set(['.md', '.markdown', '.mdown', '.mkd', '.mdx'])
 const SUPPORTED_EXT = new Set([
   '.doc', '.docx', '.docm',
   '.ppt', '.pptx', '.pptm', '.pps', '.ppsx', '.ppsm', '.pot',

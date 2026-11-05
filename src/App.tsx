@@ -12,6 +12,7 @@ import { TabStore, scrollToPos, selectRange } from './editor/tabs'
 import { EditorSession, type EditorSnapshot } from './editor/session'
 import { runEditorCommand } from './editor/commandBus'
 import { copySelection } from './editor/clipboard'
+import { insertClipboardPlainText } from './editor/plainPaste'
 import { installTopBarTooltips, setMoreMenuHandler, stopTopBarTooltips } from './editor/topBarConfig'
 import { setAssetAddedHandler, setAssetTab } from './lib/assets'
 import { saveTab } from './lib/files'
@@ -53,6 +54,7 @@ export default function App() {
   const updateSettings = useApp((s) => s.updateSettings)
   const patchTab = useApp((s) => s.patchTab)
   const setWordCount = useApp((s) => s.setWordCount)
+  const wordCount = useApp((s) => s.wordCount)
 
   const crepeRef = useRef<Crepe | null>(null)
   const tabStoreRef = useRef<TabStore | null>(null)
@@ -568,6 +570,21 @@ export default function App() {
         installTopBarTooltips(root)
         applyAppearance()
 
+        // 纯文本粘贴：转成 Markdown 再插入，避免单换行被折叠；
+        // 带 HTML 的富文本粘贴保持 Milkdown 默认行为。
+        const onPaste = (event: ClipboardEvent) => {
+          const data = event.clipboardData
+          if (!data || event.defaultPrevented) return
+          if (data.getData('text/html')) return
+          const text = data.getData('text/plain')
+          if (!text) return
+          if (view.state.selection.$from.parent.type.name === 'code_block') return
+          event.preventDefault()
+          event.stopPropagation()
+          void insertClipboardPlainText(ctx, text)
+        }
+        root.addEventListener('paste', onPaste, true)
+
         // Crepe 粘贴/拖入图片 → 记到当前标签的 assets 上，保存时统一处理
         setAssetAddedHandler((tabIdForAsset, asset) => {
           const owner =
@@ -920,7 +937,13 @@ export default function App() {
       for (const item of [...items].sort((a, b) => b.pos - a.pos)) {
         if (item.level < 1 || item.level > 6) continue
         const node = tr.doc.nodeAt(item.pos)
-        if (!node || node.type !== paragraphType) continue
+        if (!node) continue
+        const isParagraph = node.type === paragraphType
+        const isHeading = node.type === headingType
+        if (!isParagraph && !isHeading) continue
+        const currentLevel = isHeading ? Number(node.attrs.level) : 0
+        // 已有标题级别没变：保持原节点，不制造一次无意义的历史记录
+        if (currentLevel === item.level) continue
         // 用 node.content 保留加粗 / 行内代码等 mark，不用纯文本重建
         tr.replaceWith(
           item.pos,
@@ -931,7 +954,7 @@ export default function App() {
       }
       setSmartHeadings({ open: false, candidates: [] })
       if (applied === 0) {
-        notify('没有可应用的标题')
+        notify('没有需要修改的标题')
         return
       }
       // 所有替换在同一个事务里，Ctrl+Z 一次撤销
@@ -942,6 +965,14 @@ export default function App() {
     },
     [notify],
   )
+
+  // 右键菜单「粘贴为纯文本」：主进程把剪贴板文本发过来
+  useEffect(() => {
+    return api.clipboard.onPastePlain((text) => {
+      const ctx = ctxRef.current
+      if (ctx && text) void insertClipboardPlainText(ctx, text)
+    })
+  }, [])
 
   /* ----------------------------- 菜单命令 ----------------------------- */
 
@@ -1216,6 +1247,7 @@ export default function App() {
             onResizeStart={startSidebarResize}
             onResizeReset={resetSidebarWidth}
             onSmartHeadings={openSmartHeadings}
+            canDetect={wordCount > 0}
             footer={
               <SidebarFooter
                 onReload={() => {

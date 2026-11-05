@@ -17,10 +17,12 @@ export interface HeadingCandidate {
   baseWeight: number
   /** 加上下文加减后的置信度 */
   score: number
-  /** 动态映射的默认级别 1..6 */
+  /** 动态映射的默认级别 1..6；已有标题使用原级别 */
   level: number
-  /** 默认是否勾选（score > 80） */
+  /** 默认是否勾选（score > 80；已有标题为 true） */
   checked: boolean
+  /** 文档中已有的标题（原样预览，不参与动态映射） */
+  existing?: boolean
 }
 
 const FEATURES: Array<{ re: RegExp; weight: number }> = [
@@ -62,9 +64,24 @@ function numberedRunPenalty(parent: PMNode, index: number, text: string): boolea
 
 /** 从当前文档提取候选标题；返回的 pos 可直接用于事务替换 */
 export function detectHeadings(doc: PMNode): HeadingCandidate[] {
-  const found: Omit<HeadingCandidate, 'level' | 'checked'>[] = []
+  const found: HeadingCandidate[] = []
 
   doc.descendants((node, pos) => {
+    // 已有标题原样进入预览，避免“全是有标题的文档”反而提示没有候选
+    if (node.type.name === 'heading') {
+      const text = node.textContent.trim() || '(空标题)'
+      found.push({
+        pos,
+        nodeSize: node.nodeSize,
+        text,
+        baseWeight: 0,
+        score: 0,
+        level: Math.max(1, Math.min(6, Number(node.attrs.level) || 1)),
+        checked: true,
+        existing: true,
+      })
+      return true
+    }
     if (node.type.name !== 'paragraph') return true
 
     const $pos = doc.resolve(pos)
@@ -107,12 +124,17 @@ export function detectHeadings(doc: PMNode): HeadingCandidate[] {
       text,
       baseWeight,
       score,
+      level: 0,
+      checked: false,
     })
     return true
   })
 
-  const maxWeight = found.reduce((max, item) => Math.max(max, item.baseWeight), 0)
+  const maxWeight = found
+    .filter((item) => !item.existing)
+    .reduce((max, item) => Math.max(max, item.baseWeight), 0)
   return found.map((item) => {
+    if (item.existing) return item
     const level = Math.max(1, Math.min(6, 1 + Math.floor((maxWeight - item.baseWeight) / 20)))
     return {
       ...item,

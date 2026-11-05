@@ -100,6 +100,13 @@ const mock = {
         return false
       }
     },
+    onPastePlain: (_cb: (text: string) => void) => unsub(),
+  },
+  text: {
+    toMarkdown: async (text: string) =>
+      text
+        .replace(/\r\n?/g, '\n')
+        .replace(/(?<!\n)\n(?!\n)/g, '  \n'),
   },
   app: {
     info: async (): Promise<AppInfo> => ({
@@ -163,6 +170,10 @@ export interface SeekieApi {
   }
   clipboard: {
     write: (payload: ClipboardPayload) => Promise<boolean>
+    onPastePlain: (cb: (text: string) => void) => () => void
+  }
+  text: {
+    toMarkdown: (text: string) => Promise<string>
   }
   app: {
     info: () => Promise<AppInfo>

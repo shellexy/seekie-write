@@ -31,6 +31,7 @@ import { getSettings, setSettings } from './lib/settings'
 import * as drafts from './lib/drafts'
 import { mtimeOf, openDocument, pickOpenFile, revealInFolder, saveDocument } from './lib/files'
 import { closePrintPreview, exportFile, exportPdf, openPrintPreview, printWindow } from './lib/export'
+import { plainTextToMarkdown } from './lib/textConvert'
 
 const __dirname_ = fileURLToPath(new URL('.', import.meta.url))
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -223,6 +224,12 @@ function createWindow(): void {
       { label: '复制（Markdown）', enabled: hasSelection, click: send('clipboard:copy-markdown') },
       { label: '复制（富文本）', enabled: hasSelection, click: send('clipboard:copy-html') },
       { label: '粘贴', role: 'paste', enabled: params.editFlags.canPaste },
+      {
+        label: '粘贴为纯文本',
+        enabled: params.editFlags.canPaste,
+        click: () =>
+          mainWindow?.webContents.send(IPC.clipboardPastePlain, clipboard.readText()),
+      },
       { label: '全选', role: 'selectAll', enabled: params.editFlags.canSelectAll },
       { type: 'separator' },
       {
@@ -397,6 +404,7 @@ function registerIpc(): void {
     return result
   })
   ipcMain.handle(IPC.fileSave, async (_e, req: SaveRequest) => saveDocument(mainWindow, req))
+  ipcMain.handle(IPC.textToMarkdown, async (_e, text: string) => plainTextToMarkdown(text))
   ipcMain.handle(IPC.fileReveal, async (_e, path: string) => revealInFolder(path))
   ipcMain.handle(IPC.fileExport, async (_e, req: ExportRequest) => exportFile(mainWindow, req))
   ipcMain.handle(IPC.printToPdf, async (_e, fileName: string) => exportPdf(mainWindow, fileName))

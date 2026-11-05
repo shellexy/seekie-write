@@ -17,6 +17,8 @@ const root = process.cwd()
 const smokeDir = join(root, '.smoke')
 const autoPath = join(smokeDir, 'auto.md')
 const smartPath = join(smokeDir, 'smart.md')
+const plainPath = join(smokeDir, 'plain.txt')
+const htmlPath = join(smokeDir, 'page.html')
 const samplePath = join(root, 'samples', '示例笔记.md')
 const readmePath = join(root, 'README.md')
 const electronBin = join(root, 'node_modules', '.bin', 'electron')
@@ -115,6 +117,12 @@ try {
   writeFileSync(
     smartPath,
     '# 已有标题\n\n第一卷 开端\n\n第一章 测试\n\n1.1 粗体小节\n',
+    'utf8',
+  )
+  writeFileSync(plainPath, '第一行文字\n第二行文字\n\n第三行文字\n', 'utf8')
+  writeFileSync(
+    htmlPath,
+    '<!doctype html><html><body><h1>HTML 标题</h1><ul><li>a</li><li>b</li></ul></body></html>',
     'utf8',
   )
 
@@ -279,6 +287,7 @@ try {
     text: row.querySelector('.smart-headings__text')?.textContent ?? '',
     checked: row.querySelector('input[type="checkbox"]')?.checked,
     level: row.querySelector('select')?.value,
+    score: row.querySelector('.smart-headings__score')?.textContent ?? '',
   }))`)
   check(
     '智能识别标题候选预览',
@@ -288,6 +297,11 @@ try {
     JSON.stringify(smartRows),
   )
   const smartWarn = await cdp.ev(`document.querySelector('.smart-headings__warn')?.textContent ?? ''`)
+  check(
+    '已有标题原样进入预览',
+    smartRows.some((row) => row.text === '已有标题' && row.score === '已有'),
+    JSON.stringify(smartRows),
+  )
   check('智能识别提示覆盖现有标题', smartWarn.includes('覆盖现有标题'), smartWarn)
   await cdp.ev(
     `[...document.querySelectorAll('.dialog--smart-headings .btn')].find((b) => b.textContent.includes('应用标题'))?.click()`,
@@ -309,6 +323,62 @@ try {
     '智能识别一次 Ctrl+Z 撤销',
     undoneHeadings.length === 1 && undoneHeadings[0] === '已有标题',
     JSON.stringify(undoneHeadings),
+  )
+
+  await openPath(plainPath)
+  const plain = await cdp.ev(`({
+    title: document.querySelector('.tab.is-active .tab__label')?.textContent ?? '',
+    br: document.querySelectorAll('.ProseMirror br').length,
+    text: document.querySelector('.ProseMirror')?.innerText ?? '',
+  })`)
+  check(
+    '纯文本 txt 单换行保留',
+    plain.title === 'plain.txt.md' && plain.br > 0 && plain.text.includes('第一行文字\n第二行文字'),
+    JSON.stringify(plain),
+  )
+
+  await openPath(htmlPath)
+  const htmlConverted = await cdp.ev(`({
+    title: document.querySelector('.tab.is-active .tab__label')?.textContent ?? '',
+    h1: document.querySelector('.ProseMirror h1')?.textContent ?? '',
+    items: [...document.querySelectorAll('.ProseMirror li')].map((li) => li.textContent.trim()),
+  })`)
+  check(
+    'HTML 转 Markdown',
+    htmlConverted.title === 'page.html.md' &&
+      htmlConverted.h1 === 'HTML 标题' &&
+      htmlConverted.items.join(',') === 'a,b',
+    JSON.stringify(htmlConverted),
+  )
+
+  await openPath(autoPath)
+  await cdp.ev(`document.querySelector('.ProseMirror')?.focus()`)
+  await cdp.ev(`window.seekie.clipboard.write({ text: 'PASTE1\\nPASTE2' })`)
+  await cdp.call('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    modifiers: 2,
+    key: 'v',
+    code: 'KeyV',
+    windowsVirtualKeyCode: 86,
+    nativeVirtualKeyCode: 86,
+  })
+  await cdp.call('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    modifiers: 2,
+    key: 'v',
+    code: 'KeyV',
+    windowsVirtualKeyCode: 86,
+    nativeVirtualKeyCode: 86,
+  })
+  await delay(1200)
+  const pasted = await cdp.ev(`({
+    text: document.querySelector('.ProseMirror')?.innerText ?? '',
+    br: document.querySelectorAll('.ProseMirror br').length,
+  })`)
+  check(
+    '纯文本粘贴单换行保留',
+    pasted.br > 0 && pasted.text.includes('PASTE1\nPASTE2'),
+    JSON.stringify(pasted),
   )
 
   await clickMore()
