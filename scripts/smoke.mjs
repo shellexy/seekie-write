@@ -329,11 +329,16 @@ try {
   const plain = await cdp.ev(`({
     title: document.querySelector('.tab.is-active .tab__label')?.textContent ?? '',
     br: document.querySelectorAll('.ProseMirror br').length,
+    paragraphs: document.querySelectorAll('.ProseMirror p').length,
     text: document.querySelector('.ProseMirror')?.innerText ?? '',
   })`)
   check(
-    '纯文本 txt 单换行保留',
-    plain.title === 'plain.txt.md' && plain.br > 0 && plain.text.includes('第一行文字\n第二行文字'),
+    '纯文本 txt 每行一段',
+    plain.title === 'plain.txt.md' &&
+      plain.br === 0 &&
+      plain.paragraphs >= 3 &&
+      plain.text.includes('第一行文字') &&
+      plain.text.includes('第二行文字'),
     JSON.stringify(plain),
   )
 
@@ -374,10 +379,15 @@ try {
   const pasted = await cdp.ev(`({
     text: document.querySelector('.ProseMirror')?.innerText ?? '',
     br: document.querySelectorAll('.ProseMirror br').length,
+    paragraphs: document.querySelectorAll('.ProseMirror p').length,
   })`)
   check(
-    '纯文本粘贴单换行保留',
-    pasted.br > 0 && pasted.text.includes('PASTE1\nPASTE2'),
+    '纯文本粘贴每行一段',
+    pasted.br === 0 &&
+      pasted.paragraphs > 1 &&
+      pasted.text.includes('PASTE1') &&
+      pasted.text.includes('PASTE2') &&
+      !pasted.text.includes('PASTE1 PASTE2'),
     JSON.stringify(pasted),
   )
 

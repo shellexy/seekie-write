@@ -1,31 +1,88 @@
 import { readFileSync } from 'node:fs'
+import { extname } from 'node:path'
 
 /**
- * 纯文本 / 源码 → Markdown，以及 HTML → Markdown。
- *
- * 纯文本里单个换行在 Markdown 里是软换行，编辑器会显示成连续一行；
- * 这里给非空行尾补两个空格，转成硬换行，空行仍作为段落分隔。
+ * GfmEscape 的语义：每一行 = 一个独立段落。
+ * 空行直接跳过，不产生空段落；单换行不会加反斜杠，也不会被折叠。
  */
-function hardenPlainTextNewlines(markdown: string): string {
-  // 源码文件会被 mdgate/text 包成 ``` 代码块，不能在里面改行尾
-  if (/^```/.test(markdown.trimStart())) return markdown
-  const lines = markdown.replace(/\r\n?/g, '\n').split('\n')
-  return lines
-    .map((line, index) => {
-      const next = lines[index + 1]
-      if (line === '' || next === undefined || next === '') return line
-      if (line.endsWith('  ') || line.endsWith('\\')) return line
-      return `${line}  `
-    })
-    .join('\n')
+let escapeLine: ((line: string) => string) | null = null
+
+async function getEscaper(): Promise<(line: string) => string> {
+  if (escapeLine) return escapeLine
+  const mod = await import('gfm-escape')
+  const GfmEscape = mod.default
+  const escaper = new GfmEscape(
+    { table: true, strikethrough: true },
+    GfmEscape.Syntax.text,
+  )
+  escapeLine = (line: string) => escaper.escape(line)
+  return escapeLine
 }
 
-/** .txt / 源码 / 未知文本：@mdgate/text 根据 path 决定按段落还是代码块处理 */
+export async function txtToMarkdown(raw: string): Promise<string> {
+  const escape = await getEscaper()
+  return raw
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim() !== '')
+    .map((line) => escape(line))
+    .join('\n\n')
+}
+
+/** 源码文件用围栏代码块保留缩进与换行，不按纯文本拆段 */
+const SOURCE_LANG: Record<string, string> = {
+  '.js': 'javascript',
+  '.mjs': 'javascript',
+  '.cjs': 'javascript',
+  '.jsx': 'jsx',
+  '.ts': 'typescript',
+  '.mts': 'typescript',
+  '.cts': 'typescript',
+  '.tsx': 'tsx',
+  '.py': 'python',
+  '.rb': 'ruby',
+  '.go': 'go',
+  '.rs': 'rust',
+  '.java': 'java',
+  '.c': 'c',
+  '.h': 'c',
+  '.cc': 'cpp',
+  '.cpp': 'cpp',
+  '.hpp': 'cpp',
+  '.cs': 'csharp',
+  '.php': 'php',
+  '.sh': 'bash',
+  '.bash': 'bash',
+  '.zsh': 'bash',
+  '.fish': 'fish',
+  '.ps1': 'powershell',
+  '.sql': 'sql',
+  '.json': 'json',
+  '.yaml': 'yaml',
+  '.yml': 'yaml',
+  '.toml': 'toml',
+  '.ini': 'ini',
+  '.css': 'css',
+  '.scss': 'scss',
+  '.less': 'less',
+  '.xml': 'xml',
+  '.svg': 'xml',
+}
+
+function fencedCode(raw: string, lang: string): string {
+  const body = raw.replace(/\r\n?/g, '\n').replace(/\s+$/, '')
+  let fence = '````'
+  while (body.includes(fence)) fence += '`'
+  return `${fence}${lang}\n${body}\n${fence}\n`
+}
+
+/** 纯文本 / 源码文件 → Markdown */
 export async function convertPlainTextFile(filePath: string): Promise<string> {
-  const { toMarkdown } = await import('@mdgate/text')
-  const bytes = new Uint8Array(readFileSync(filePath))
-  const markdown = await toMarkdown(bytes, { path: filePath })
-  return hardenPlainTextNewlines(markdown)
+  const raw = readFileSync(filePath, 'utf8')
+  const lang = SOURCE_LANG[extname(filePath).toLowerCase()]
+  if (lang) return fencedCode(raw, lang)
+  return txtToMarkdown(raw)
 }
 
 /** HTML / XHTML / MHTML → Markdown */
@@ -35,10 +92,7 @@ export async function convertHtmlFile(filePath: string): Promise<string> {
   return toMarkdown(bytes, { path: filePath })
 }
 
-/** 粘贴的纯文本 → Markdown（按 .txt 处理并硬化单换行） */
+/** 粘贴的纯文本 → Markdown（每行一个段落，GfmEscape 转义） */
 export async function plainTextToMarkdown(text: string): Promise<string> {
-  const { toMarkdown } = await import('@mdgate/text')
-  const bytes = new TextEncoder().encode(text)
-  const markdown = await toMarkdown(bytes, { path: 'paste.txt' })
-  return hardenPlainTextNewlines(markdown)
+  return txtToMarkdown(text)
 }

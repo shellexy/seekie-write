@@ -1,6 +1,6 @@
 # seekie-write
 
-[![Version](https://img.shields.io/github/v/release/shellexy/seekie-write?label=version&style=flat-square)](https://github.com/shellexy/seekie-write/releases)
+[![Version](https://img.shields.io/github/v/release/shellexy/seekie-write?label=version&style=flat-square)](https://github.com/shellexy/seekie-write/releases) [![License](https://img.shields.io/github/license/shellexy/seekie-write?style=flat-square)](https://github.com/shellexy/seekie-write/blob/main/LICENSE) ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue?style=flat-square)
 
 类 Typora 的所见即所得 Markdown 编辑器。Electron 45 + Milkdown Crepe 7.23。
 
@@ -32,8 +32,8 @@
 * **文件标签去重**：同一路径（含转换源文件）只保留一个标签，重复打开直接切到已有标签，避免两个标签互相覆盖
 * **自动保存**：800ms debounce；只有序列化后的 Markdown 与上次保存不同才写盘，撤销回原内容会清 dirty 并取消自动保存；没有落盘路径的标签只写草稿区（不会弹另存为），关窗口重开能恢复
 * **冲突检测**：同一标签保存串行化，mtime 基线随保存结果直接带回，避免自己的自动保存误报；真正的外部修改仍会暂停并提示
-* **打开非 Markdown 文档**：`@firecrawl/anydoc` 转换 Office / PDF 等；`@mdgate/html` 转 HTML；`@mdgate/text` 转纯文本 / 源码，单换行写成硬换行，不会被折叠成连续一行；可选把内嵌图片直接转成 base64 data URI，打开即自包含
-* **纯文本粘贴**：编辑区普通粘贴和右键“粘贴为纯文本”都会先转成 Markdown（单换行硬化），代码块内保持原文
+* **打开非 Markdown 文档**：`@firecrawl/anydoc` 转换 Office / PDF 等；`@mdgate/html` 转 HTML；纯文本用 `GfmEscape` 转成每行一个段落（不加 `\`、不折叠），源码文件用围栏代码块保留原文；可选把内嵌图片直接转成 base64 data URI，打开即自包含
+* **纯文本粘贴**：编辑区普通粘贴和右键“粘贴为纯文本”都会先转成 Markdown（每行一个段落，GfmEscape 转义），代码块内保持原文
 * **本地相对图片**：打开的 .md 里 `docs/a.png` 会按文件所在目录解析（`seekie-local://` 协议），dev / AppImage / deb 都能显示，Markdown 源文本仍保持相对路径
 * **另存命名**：`季度报告.docx` → `季度报告.docx.md`（保留原扩展名，不覆盖源文件）
 * **图片两种保存策略**：内联 base64 / 相对路径（`文档名.assets/`）；base64 保存时先用 `@aurouscia/image-compress` 压成宽度 ≤1280px 的 webp（动图 GIF / webp / SVG 跳过，静态 GIF 会压缩）
@@ -74,7 +74,7 @@ npm run smoke:only   # 直接用现有 out/ 跑
 SMOKE_KEEP=1 npm run smoke:only  # 保留 .smoke 配置便于排查
 ```
 
-脚本会启动一个随机端口的 Xvfb + Electron，用 CDP 检查：启动文件、重复打开去重、新建空文档、README 相对图片（seekie-local 协议）、撤销回原内容不触发自动保存、真实修改自动保存、智能识别标题（含已有标题）、txt 单换行、HTML 转换、纯文本粘贴、⋮ 菜单、关于图标等。共 27 项，完成后自动清理 `.smoke/`。
+脚本会启动一个随机端口的 Xvfb + Electron，用 CDP 检查：启动文件、重复打开去重、新建空文档、README 相对图片（seekie-local 协议）、撤销回原内容不触发自动保存、真实修改自动保存、智能识别标题（含已有标题）、txt 每行一段、HTML 转换、纯文本粘贴、⋮ 菜单、关于图标等。共 27 项，完成后自动清理 `.smoke/`。
 
 ## 快捷键
 
@@ -182,7 +182,7 @@ samples/               测试用的 .docx / .md
 | 标题栏 / 顶栏                                  | ✅ 另存为是下拉箭头（与打开箭头同款）；顶栏图标 SVG 用 `--fg-muted`，分隔线 `--fg-faint`，底边 `color-mix(fg 30%)`           |
 | 打包配置                                      | ✅ electron-builder 26.18.0 `--dir` 成功；`afterPack` 把 `chrome-sandbox` 设为 4755                  |
 | 智能识别标题 | ✅ 已有标题按原级别显示为“已有”；7 个候选，默认勾选 3 个；应用 H1/H2/H3 后一次 Ctrl+Z 还原 |
-| 纯文本 / HTML 打开 | ✅ `.txt` 单换行保留为硬换行；HTML `<h1>` / 列表正常转 Markdown |
-| 纯文本粘贴 | ✅ 多行粘贴保留换行，不再折叠成一行 |
+| 纯文本 / HTML 打开 | ✅ `.txt` 每行独立成段、无反斜杠；HTML `<h1>` / 列表正常转 Markdown |
+| 纯文本粘贴 | ✅ 多行粘贴按行拆分段落，不再折叠成一行 |
 | 查看源码 | ✅ CodeMirror 只读、Markdown 高亮、带行号 |
 | 冒烟测试 | ✅ `npm run smoke:only` 27 项全部通过 |
