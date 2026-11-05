@@ -1,6 +1,6 @@
 # seekie-write
 
-[![Version](https://img.shields.io/github/v/release/shellexy/seekie-write?label=version&style=flat-square)](https://github.com/shellexy/seekie-write/releases) [![License](https://img.shields.io/github/license/shellexy/seekie-write?style=flat-square)](https://github.com/shellexy/seekie-write/blob/main/LICENSE) ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue?style=flat-square)
+[![Version](https://img.shields.io/github/v/release/shellexy/seekie-write?label=version&style=flat-square)](https://github.com/shellexy/seekie-write/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](https://github.com/shellexy/seekie-write/blob/main/LICENSE) ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue?style=flat-square)
 
 类 Typora 的所见即所得 Markdown 编辑器。Electron 45 + Milkdown Crepe 7.23。
 
