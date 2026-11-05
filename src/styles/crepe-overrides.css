@@ -67,13 +67,10 @@
 }
 /* Crepe 默认把图标 SVG 的 color 设成 --crepe-color-outline（很浅），这里覆盖成正文色 */
 .milkdown .milkdown-top-bar .top-bar-item:not(.active) svg {
-  color: var(--fg);
+  color: var(--fg-muted);
 }
 
-/* 图片图标线条偏细、在浅色背景下辨识度低，单独加深 */
-.milkdown .milkdown-top-bar .top-bar-item[data-key='image'] {
-  color: var(--fg);
-}
+/* 图片图标线条偏细，单独加粗 */
 .milkdown .milkdown-top-bar .top-bar-item[data-key='image'] svg {
   stroke-width: 2.1;
 }

@@ -3,6 +3,9 @@ import type { AppInfo } from '@shared/types'
 import appIcon from '../../build/icon.png'
 import { api } from '../lib/api'
 
+// 固定成绝对 URL：编辑器会按当前文件的目录切换 <base>，相对路径会跟着跑偏
+const appIconUrl = new URL(appIcon, import.meta.url).href
+
 export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [info, setInfo] = useState<AppInfo | null>(null)
 
@@ -36,7 +39,7 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
         role="dialog"
         aria-label="关于 seekie-write"
       >
-        <img className="about-icon" src={appIcon} alt="seekie-write" width={64} height={64} />
+        <img className="about-icon" src={appIconUrl} alt="seekie-write" width={200} height={200} />
         <h3 className="dialog__title">seekie-write</h3>
         <p className="dialog__hint">所见即所得的 Markdown 编辑器 · Linux 优先</p>
         <dl className="about-list">

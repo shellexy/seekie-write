@@ -10,8 +10,9 @@ import {
   shell,
   type MenuItemConstructorOptions,
 } from 'electron'
-import { join, resolve } from 'node:path'
+import { extname, join, resolve } from 'node:path'
 import { statSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import type {
   AppInfo,
@@ -38,6 +39,11 @@ const isDev = !!process.env['ELECTRON_RENDERER_URL']
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'seekie-asset',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  },
+  {
+    // 打开的 .md 里的相对图片：按文件目录解析后走这个本地协议
+    scheme: 'seekie-local',
     privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
   },
 ])
@@ -94,6 +100,37 @@ function registerAssetProtocol(): void {
         'Cache-Control': 'no-store',
       },
     })
+  })
+}
+
+const LOCAL_IMAGE_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+}
+
+/** seekie-local://local/<绝对路径>：只允许图片扩展名，避免把任意本地文件暴露给页面 */
+function registerLocalImageProtocol(): void {
+  protocol.handle('seekie-local', async (request) => {
+    try {
+      const url = new URL(request.url)
+      const filePath = decodeURIComponent(url.pathname)
+      if (!filePath.startsWith('/')) return new Response('Forbidden', { status: 403 })
+      const mime = LOCAL_IMAGE_MIME[extname(filePath).toLowerCase()]
+      if (!mime) return new Response('Forbidden', { status: 403 })
+      const data = await readFile(filePath)
+      return new Response(data, {
+        headers: { 'Content-Type': mime, 'Cache-Control': 'no-store' },
+      })
+    } catch {
+      return new Response('Not Found', { status: 404 })
+    }
   })
 }
 
@@ -399,6 +436,7 @@ function registerIpc(): void {
 async function init(): Promise<void> {
   pendingOpenFile = pickFileFromArgv(process.argv)
   registerAssetProtocol()
+  registerLocalImageProtocol()
   registerIpc()
   buildMenu()
   createWindow()

@@ -15,6 +15,7 @@ import { copySelection } from './editor/clipboard'
 import { installTopBarTooltips, setMoreMenuHandler, stopTopBarTooltips } from './editor/topBarConfig'
 import { setAssetAddedHandler, setAssetTab } from './lib/assets'
 import { saveTab } from './lib/files'
+import { applyImageBase } from './lib/imageBase'
 import { fileName, tabId as makeTabId } from './lib/titleFromPath'
 import { activeOutlineId, type OutlineItem } from './lib/outline'
 import {
@@ -178,6 +179,7 @@ export default function App() {
             title: fileName(result.path),
             mtime: result.mtime ?? (await api.file.mtime(result.path)),
           })
+          if (useApp.getState().activeId === id) applyImageBase(result.path)
           void api.asset.drop(id)
           if (result.writtenImages) notify(`已保存，并写入 ${result.writtenImages} 张图片`)
         } else if (result.status === 'canceled') {
@@ -522,6 +524,9 @@ export default function App() {
     (id: string) => {
       const store = tabStoreRef.current
       if (!store || !store.has(id)) return
+      const tab = useApp.getState().tabs.find((item) => item.id === id)
+      // 相对图片按当前文件目录解析；必须在 view 切到该标签之前设置 base
+      applyImageBase(tab ? (tab.savePath ?? tab.sourcePath) : null)
       store.activate(id)
       useApp.getState().setActive(id)
       setAssetTab(id)
