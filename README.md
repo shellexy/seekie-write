@@ -13,9 +13,10 @@
 - **顶栏 ⋮ 菜单**：撤销 / 重做 / 查找 / 替换 / 查看源码 / 设置 / 关于；自定义标题栏只保留文件操作与标签条
 - **自定义标题栏**（Linux 优先，`frame:false`）：新建 / 打开（右侧小箭头展开最近文件）/ 保存 / 另存为·导出下拉、标签条、自绘窗口三键
 - **标签条**：用满标题栏剩余宽度；放不下时可用滚轮横向滚动，或 `Ctrl+Tab` / `Ctrl+Shift+Tab` 循环切换，切到的标签会自动滚到可见区域；右侧「全部标签」下拉可直接切换或关闭任意标签
-- **启动恢复**：设置里可开关“启动时恢复上次打开的文件”；退出时记录所有有落盘路径的标签，下次启动重新打开，草稿也会一起恢复
+- **启动恢复**：默认只恢复草稿；设置里勾选“启动时恢复上次打开的文件”后，才会连同上次有落盘路径的标签一起重新打开
 - **最近文件**：打开按钮旁的箭头列出最近 12 个文件，点一下直接重开
-- **导出 / 打印**：另存为下拉里包含 另存为、导出 Markdown（单文件）、导出 HTML（单文件）、导出 docx、导出 PDF、打印、打印预览；单文件导出会把图片以内联 base64 写进同一个文件
+- **导出 / 打印**：另存为下拉箭头里包含 另存为、导出 Markdown（单文件）、导出 HTML（单文件）、导出 docx、导出 PDF、打印、打印预览；单文件导出会把图片以内联 base64 写进同一个文件，HTML 里的 LaTeX 公式转成 MathML
+- **程序图标**：`build/icon.png` 同时用于窗口图标、Linux 桌面入口和“关于”对话框
 - **标签右键菜单**：关闭标签 / 关闭其他标签 / 关闭右侧标签、复制文件路径、在文件夹中显示
 - **对话框记忆**：打开 / 保存对话框默认回到上次所在目录
 - **大纲底部信息区**：字数 / 选中 / 字符 / 段落 / 保存状态 / 图片策略 / 缩放都收在大纲侧栏底部，不占窗口底部的横向空间
@@ -42,6 +43,8 @@ npm run build        # 打 out/
 npm run typecheck    # 主进程 + 渲染层分别做类型检查
 npm run dist         # Linux AppImage + deb
 ```
+
+打包配置都在 `package.json` 的 `build` 字段（electron-builder 26）：`build/icon.png`、Linux 桌面入口 / MIME、AppImage zstd、`afterPack` 沙箱权限钩子等。`afterPack` 是 electron-builder 的**顶层钩子**，所以放在 `build.afterPack` 而不是 `build.linux.afterPack`。
 
 Linux 上跑无边框窗口需要的系统库：
 
@@ -102,7 +105,6 @@ samples/               测试用的 .docx / .md
 
 - **PDF 转换拿不到内嵌图片**：anydoc 对 PDF 直接产出 Markdown，没有 document 模型，也就没有 assets。文本型 PDF 可用，扫描版会提示需要 OCR（本机不做 OCR）。
 - **内嵌 base64 不可逆**：开启“打开时图片内嵌为 base64”后，转换出的 Markdown 已经是 data URI，保存时会保持内嵌，不会再自动改成 `.assets/` 相对路径；图片多的文档体积会明显增加。
-- **HTML 导出不渲染公式**：单文件 HTML 用 `marked` 生成，KaTeX 公式会保留 `$…$` 原文；导出 docx 走 `@m2d/md2docx`，公式有插件支持。
 - **启动恢复只在正常退出时记录**：`session.json` 在关闭窗口时写入；进程被强杀时只会恢复草稿区。
 - **图片压缩跳过动图 GIF / webp / SVG**：动图避免被压成单帧，SVG 是矢量，webp 已经是目标格式；静态 GIF 仍会压成 webp。
 - **docx 导出包**：`@md2docx/md2docx@0.1.3` 的 ESM 入口错误地 re-export 了不存在的 default，实际使用其官方底层 `@m2d/md2docx@0.1.3`（同一实现）。
@@ -137,7 +139,7 @@ samples/               测试用的 .docx / .md
 | 顶栏 ⋮ 菜单 | ✅ 最右侧，右边缘距窗口 12px；撤销 / 重做 / 查找 / 替换 / 查看源码 / 设置 / 关于全部可用 |
 | 新建空白标签 | ✅ 正文为空，标签临时名为“新文档-N”，placeholder 为中文提示 |
 | 查看源码 | ✅ 对话框内 CodeMirror 只读高亮当前 Markdown 源码 |
-| 关于 | ✅ 首页 / 版本 0.1.0 / Electron 45.2.2 / Node.js 24.22.2 / MIT |
+| 关于 | ✅ 首页 / 版本 0.1.0 / Electron 45.2.2 / Node.js 24.22.2 / MIT；`build/icon.png` 正常加载（512→64px） |
 | 启动文件拉取 | ✅ 渲染层就绪后主动取启动参数文件，生产构建打开准确 |
 | 大纲单击 / 双击跳转 | ✅ 标题停在 TopBar 下方 16px，完整可见 |
 | 标签条溢出 | ✅ 14 个标签时滚轮横向滚动；`Ctrl+Tab` 循环并自动滚出当前标签 |
@@ -148,10 +150,12 @@ samples/               测试用的 .docx / .md
 | 右键复制选中 | ✅ 纯文本 / Markdown（`**粗体**`）/ 富文本（`<strong>粗体</strong>`） |
 | 打开文档图片内嵌 | ✅ 关闭时 `seekie-asset://`；开启后 `data:image/png;base64,…`，提示“已内嵌 base64” |
 | 最近文件 | ✅ 打开后出现在打开按钮下拉，点击可重新打开 |
-| 启动恢复 | ✅ 开：示例笔记 + 草稿恢复；关：只留一个空白标签 |
+| 启动恢复 | ✅ 默认只恢复草稿（示例：新文档-1）；勾选后示例笔记 + 草稿一起恢复 |
 | 标签右键菜单 | ✅ 关闭其他 → 剩 1 个；关闭右侧 → 剩 2 个；复制文件路径得到绝对路径 |
-| 导出 Markdown / HTML | ✅ 单文件，图片写成 `data:image/png;base64,…` |
+| 导出 Markdown / HTML | ✅ 单文件，图片写成 `data:image/png;base64,…`；HTML 公式输出 `<math>` MathML |
 | 导出 docx | ✅ `PK` 开头的有效 docx（含内嵌图片，CSP 已放行 WASM） |
 | 导出 PDF | ✅ `%PDF-`，`printBackground: true`；打印样式隐藏标题栏 / 大纲 / 顶栏，代码块 `pre-wrap` |
 | 打印预览 | ✅ 独立预览窗口，关闭主窗口时一并退出 |
 | 边界：base64 压缩 | ✅ 示例 docx 的 PNG 保存为 webp；动图 GIF / webp / SVG 跳过，静态 GIF 压缩 |
+| 标题栏 / 顶栏 | ✅ 另存为是下拉箭头（与打开箭头同款）；顶栏分隔线 / 底边用 `--border-strong`，图标用 `--fg` |
+| 打包配置 | ✅ electron-builder 26.18.0 `--dir` 成功；`afterPack` 把 `chrome-sandbox` 设为 4755 |

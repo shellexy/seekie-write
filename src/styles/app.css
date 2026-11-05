@@ -855,6 +855,14 @@ body.is-resizing * {
   gap: 8px;
   margin: 12px 0 4px;
 }
+.about-icon {
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
 .about-list__row {
   display: flex;
   gap: 16px;

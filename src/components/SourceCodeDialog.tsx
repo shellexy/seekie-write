@@ -94,7 +94,6 @@ export function SourceCodeDialog({
         aria-label="Markdown 源码"
       >
         <h3 className="dialog__title">Markdown 源码</h3>
-        <p className="dialog__hint">当前标签的 Markdown 源码（只读，高亮显示）</p>
         <div className="source-view" ref={hostRef} />
         <div className="dialog__actions">
           <button

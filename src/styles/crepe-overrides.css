@@ -27,7 +27,7 @@
   z-index: 20;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-strong);
   padding: 0 10px;
   min-height: var(--topbar-h);
   gap: 2px;
@@ -54,7 +54,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  color: var(--fg-muted);
+  color: var(--fg);
   transition: background 0.12s ease, color 0.12s ease;
 }
 .milkdown .milkdown-top-bar .top-bar-item:hover {
@@ -75,7 +75,7 @@
 }
 
 .milkdown .milkdown-top-bar .top-bar-divider {
-  background: var(--border);
+  background: var(--border-strong);
   height: 18px;
   margin: 0 6px;
 }

@@ -1,4 +1,5 @@
-import { marked } from 'marked'
+import { Marked, type TokenizerAndRendererExtension } from 'marked'
+import katex from 'katex'
 import type { DocAsset } from '@shared/types'
 import { api } from './api'
 
@@ -21,7 +22,52 @@ export function inlineAssets(
   return { markdown: next, missing }
 }
 
-marked.setOptions({ gfm: true, breaks: false })
+const inlineMath: TokenizerAndRendererExtension = {
+  name: 'inlineMath',
+  level: 'inline',
+  start(src) {
+    return src.indexOf('$')
+  },
+  tokenizer(src) {
+    const match = /^\$([^$\n]+?)\$/.exec(src)
+    if (!match) return undefined
+    return { type: 'inlineMath', raw: match[0], text: match[1] }
+  },
+  renderer(token) {
+    return katex.renderToString((token as { text?: string }).text ?? '', {
+      output: 'mathml',
+      throwOnError: false,
+    })
+  },
+}
+
+const blockMath: TokenizerAndRendererExtension = {
+  name: 'blockMath',
+  level: 'block',
+  start(src) {
+    return src.indexOf('$$')
+  },
+  tokenizer(src) {
+    const match = /^\$\$([\s\S]+?)\$\$/.exec(src)
+    if (!match) return undefined
+    return { type: 'blockMath', raw: match[0], text: match[1].trim() }
+  },
+  renderer(token) {
+    return katex.renderToString((token as { text?: string }).text ?? '', {
+      displayMode: true,
+      output: 'mathml',
+      throwOnError: false,
+    })
+  },
+}
+
+/** 单文件导出的 Marked 实例：图片已是 data URI，公式转成 MathML（不需要 KaTeX CSS/字体） */
+const exportMarked = new Marked({ gfm: true, breaks: false })
+exportMarked.use({ extensions: [blockMath, inlineMath] })
+
+function markdownToHtml(markdown: string): string {
+  return exportMarked.parse(markdown, { async: false }) as string
+}
 
 const EXPORT_CSS = `
   body { margin: 0 auto; padding: 48px 32px 64px; max-width: 820px;
@@ -42,10 +88,14 @@ const EXPORT_CSS = `
   th { background: #f7f2ec; }
   hr { border: none; border-top: 1px solid #d6cabc; margin: 2em 0; }
   blockquote, table { word-break: break-word; }
+  .katex { font-size: 1.05em; }
+  .katex math, math { font-size: 1.05em; }
+  .katex math[display='block'], math[display='block'] { display: block; margin: 1em auto; }
 `
 
-/** Markdown → 独立 HTML 单文件（图片已内嵌，样式内联，代码块打印时强制换行） */
-export function buildStandaloneHtml(title: string, markdownHtml: string): string {
+/** Markdown → 独立 HTML 单文件（图片已内嵌，公式转 MathML，样式内联） */
+export function buildStandaloneHtml(title: string, markdown: string): string {
+  const markdownHtml = markdownToHtml(markdown)
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -68,7 +118,8 @@ ${markdownHtml}
 }
 
 /** 预览窗口里加个「打印」按钮，打印时隐藏 */
-export function buildPrintPreviewHtml(title: string, markdownHtml: string): string {
+export function buildPrintPreviewHtml(title: string, markdown: string): string {
+  const markdownHtml = markdownToHtml(markdown)
   return `<!doctype html>
 <html lang="zh-CN">
 <head>

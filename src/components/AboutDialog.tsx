@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { AppInfo } from '@shared/types'
+import appIcon from '../../build/icon.png'
 import { api } from '../lib/api'
 
 export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -35,6 +36,7 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
         role="dialog"
         aria-label="关于 seekie-write"
       >
+        <img className="about-icon" src={appIcon} alt="seekie-write" width={64} height={64} />
         <h3 className="dialog__title">seekie-write</h3>
         <p className="dialog__hint">所见即所得的 Markdown 编辑器 · Linux 优先</p>
         <dl className="about-list">

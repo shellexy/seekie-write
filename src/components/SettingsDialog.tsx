@@ -147,6 +147,9 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
               打开 Word / PPT / Excel 等文档时，把内嵌图片直接写成 data URI；文档自包含，但体积约增加
               33%，保存时保持内嵌。PDF 无法提取内嵌图片。
             </p>
+            <p className="settings__hint">
+              启动时默认只恢复草稿；勾选“启动时恢复上次打开的文件”后才会重新打开上次的标签。
+            </p>
           </section>
         </div>
 

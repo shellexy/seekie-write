@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Crepe } from '@milkdown/crepe'
-import { marked } from 'marked'
 import type { Ctx } from '@milkdown/kit/ctx'
 import { editorViewCtx } from '@milkdown/kit/core'
 import type { ImageSaveMode, SaveKind } from '@shared/types'
@@ -283,11 +282,10 @@ export default function App() {
           return
         }
 
-        const html = marked.parse(inlined.markdown, { async: false }) as string
         if (kind === 'html') {
           const saved = await exportViaDialog({
             fileName: `${data.baseName}.html`,
-            content: buildStandaloneHtml(data.baseName, html),
+            content: buildStandaloneHtml(data.baseName, inlined.markdown),
             extensions: ['html'],
           })
           if (saved) notify(`已导出 ${fileName(saved)}`)
@@ -334,8 +332,10 @@ export default function App() {
     if (!data) return
     try {
       const inlined = inlineAssets(data.markdown, data.tab.assets)
-      const html = marked.parse(inlined.markdown, { async: false }) as string
-      await api.print.preview(data.baseName, buildPrintPreviewHtml(data.baseName, html))
+      await api.print.preview(
+        data.baseName,
+        buildPrintPreviewHtml(data.baseName, inlined.markdown),
+      )
     } catch (err) {
       notify(`打印预览失败：${err instanceof Error ? err.message : String(err)}`)
     }
@@ -353,22 +353,22 @@ export default function App() {
     const store = tabStoreRef.current
     if (!store) return
     const session = await api.draft.loadSession()
+    // 草稿始终恢复；“重开上次的文件”由设置控制，默认关闭
+    const restoreFiles = useApp.getState().settings.restoreLastFiles
 
-    if (!useApp.getState().settings.restoreLastFiles) {
-      if (useApp.getState().tabs.length === 0) newTabRef.current?.()
-      return
-    }
-
-    let restored = false
+    let restoredFiles = false
 
     // 先重开上次有落盘路径的文件；已删除的跳过
-    for (const open of session.openTabs ?? []) {
-      if (!open.savePath) continue
-      if ((await api.file.mtime(open.savePath)) == null) continue
-      await openPathRef.current?.(open.savePath)
-      restored = true
+    if (restoreFiles) {
+      for (const open of session.openTabs ?? []) {
+        if (!open.savePath) continue
+        if ((await api.file.mtime(open.savePath)) == null) continue
+        await openPathRef.current?.(open.savePath)
+        restoredFiles = true
+      }
     }
 
+    let restoredDrafts = false
     for (const draft of session.tabs) {
       if (store.has(draft.tabId)) continue
       const state = store.createStateFromMarkdown(draft.markdown)
@@ -388,10 +388,10 @@ export default function App() {
         mtime: draft.savePath ? await api.file.mtime(draft.savePath) : null,
         scrollTop: 0,
       })
-      restored = true
+      restoredDrafts = true
     }
 
-    if (session.activeSavePath) {
+    if (restoreFiles && session.activeSavePath) {
       const target = useApp
         .getState()
         .tabs.find((tab) => tab.savePath === session.activeSavePath)
@@ -400,11 +400,11 @@ export default function App() {
       activateRef.current?.(session.activeTabId)
     }
 
-    if (!restored) {
+    if (!restoredFiles && !restoredDrafts) {
       if (useApp.getState().tabs.length === 0) newTabRef.current?.()
       return
     }
-    notify('已恢复上次打开的文件')
+    notify(restoredFiles ? '已恢复上次打开的文件' : '已恢复上次的草稿')
   }, [notify])
 
   const saveOpenTabsSnapshot = useCallback(async () => {

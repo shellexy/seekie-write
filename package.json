@@ -1,10 +1,13 @@
 {
   "name": "seekie-write",
+  "productName": "seekie-write",
   "version": "0.1.0",
-  "description": "所见即所得 Markdown 编辑器（Electron + Milkdown Crepe）",
+  "description": "A modern WYSIWYG Markdown editor",
   "main": "./out/main/index.js",
-  "author": "seekie",
+  "author": "Shellexy <299902+shellexy@users.noreply.github.com>",
   "license": "MIT",
+  "homepage": "https://github.com/shellexy/seekie-write",
+  "desktopName": "com.github.shellexy.seekie-write",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +15,7 @@
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "dist": "npm run build && electron-builder --linux AppImage deb",
+    "dist": "npm run build && electron-builder --linux",
     "dist:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
@@ -31,7 +34,7 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^45.2.2",
-    "electron-builder": "^20.23.1",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^3.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -39,5 +42,73 @@
     "vite": "^6.0.7",
     "ws": "^8.22.1",
     "zustand": "^5.0.3"
+  },
+  "build": {
+    "appId": "com.github.shellexy.seekie-write",
+    "productName": "seekie-write",
+    "copyright": "Copyright © 2026 Shellexy",
+    "afterPack": "./scripts/after-pack-linux-sandbox.mjs",
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "package.json",
+      "node_modules/@firecrawl/anydoc/**/*",
+      "node_modules/@firecrawl/anydoc-*/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/@firecrawl/**/*"
+    ],
+    "linux": {
+      "target": [
+        "deb",
+        "AppImage"
+      ],
+      "icon": "build/icon.png",
+      "category": "Office;WordProcessor;Development;",
+      "executableName": "seekie-write",
+      "mimeTypes": [
+        "text/markdown",
+        "text/x-markdown"
+      ],
+      "synopsis": "所见即所得 Markdown 编辑器",
+      "description": "Seekie Write with Markdown",
+      "desktop": {
+        "entry": {
+          "Name": "Seekie Write",
+          "StartupWMClass": "com.github.shellexy.seekie-write",
+          "Keywords": "markdown;editor;notes;text;writing;",
+          "StartupNotify": "true",
+          "MimeType": "text/markdown;text/x-markdown;"
+        }
+      }
+    },
+    "appImage": {
+      "artifactName": "${name}-${version}-${arch}.${ext}",
+      "executableArgs": [
+        "--no-sandbox"
+      ],
+      "compression": "zstd"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "${productName}-${version}-setup.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

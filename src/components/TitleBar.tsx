@@ -6,7 +6,6 @@ import {
   IconNew,
   IconOpen,
   IconSave,
-  IconSaveAs,
   IconSidebar,
   IconMinimize,
   IconMaximize,
@@ -246,12 +245,12 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
           </button>
           <div className="saveas-split">
             <button
-              className="icon-btn"
+              className="icon-btn open-split__arrow saveas-split__arrow"
               onClick={() => setExportOpen((open) => !open)}
               title="另存为 / 导出"
               aria-label="另存为 / 导出"
             >
-              <IconSaveAs />
+              <IconChevron width={12} height={12} />
             </button>
             {exportOpen && (
               <div className="export-menu">
