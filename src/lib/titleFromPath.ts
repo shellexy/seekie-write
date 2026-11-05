@@ -6,7 +6,7 @@ export function fileName(path: string): string {
 let untitled = 0
 export function nextUntitled(): string {
   untitled += 1
-  return `未命名-${untitled}`
+  return `新文档-${untitled}`
 }
 
 export function tabId(): string {

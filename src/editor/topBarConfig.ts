@@ -44,8 +44,15 @@ import {
   IMAGE_ICON,
   TABLE_ICON,
   HR_ICON,
+  MORE_ICON,
 } from './icons'
 import { insertHr, insertImageFromPicker, insertTable } from './insert'
+
+/** App 挂载后注册：TopBar 的 ⋮ 按钮点击时打开 React 菜单 */
+let moreMenuHandler: (() => void) | null = null
+export function setMoreMenuHandler(handler: (() => void) | null): void {
+  moreMenuHandler = handler
+}
 
 /**
  * Crepe 顶部工具栏（TopBar）定制。
@@ -198,6 +205,7 @@ export const TOOLBAR_LABELS: Record<string, string> = {
   quote: '引用',
   'code-block': '代码块',
   'clear-format': '清除格式（Ctrl+\\）',
+  more: '更多（查找 / 替换 / 源码 / 设置 / 关于）',
 }
 
 /** 与 buildTopBar 里 addItem 的顺序严格一致（不含 heading selector） */
@@ -214,6 +222,7 @@ const BUTTON_LABEL_ORDER = [
   'quote',
   'code-block',
   'clear-format',
+  'more',
 ]
 
 type Builder = Parameters<NonNullable<TopBarFeatureConfig['buildTopBar']>>[0]
@@ -324,6 +333,13 @@ export function buildTopBar(builder: Builder): void {
     active: () => false,
     onRun: clearFormat,
   })
+
+  // 顶栏最右侧的 ⋮，菜单由 React 渲染
+  builder.addGroup('more', '更多').addItem('more', {
+    icon: MORE_ICON,
+    active: () => false,
+    onRun: () => moreMenuHandler?.(),
+  })
 }
 
 /**
@@ -341,7 +357,7 @@ export function installTopBarTooltips(root: HTMLElement): void {
       if (!key) return
       const label = TOOLBAR_LABELS[key]
       if (!label) return
-      btn.dataset.key = key
+      if (btn.dataset.key !== key) btn.dataset.key = key
       if (btn.title !== label) btn.title = label
       btn.setAttribute('aria-label', label)
     })
@@ -352,10 +368,22 @@ export function installTopBarTooltips(root: HTMLElement): void {
   }
   decorate()
   observer?.disconnect()
-  const bar = root.querySelector('.milkdown-top-bar')
-  if (!bar) return
-  observer = new MutationObserver(() => decorate())
-  observer.observe(bar, { childList: true, subtree: true })
+
+  // Crepe 在切换 EditorState 时可能整体替换 TopBar，所以观察 root 而不是某一根 bar：
+  // 本层只关心 TopBar 内部的 childList 变化，正文输入不会触发 decorate。
+  observer = new MutationObserver((mutations) => {
+    const touchesBar = mutations.some((mutation) => {
+      const target = mutation.target as Element
+      if (target.closest?.('.milkdown-top-bar')) return true
+      return Array.from(mutation.addedNodes).some(
+        (node) =>
+          node instanceof Element &&
+          (node.matches('.milkdown-top-bar') || !!node.querySelector('.milkdown-top-bar')),
+      )
+    })
+    if (touchesBar) decorate()
+  })
+  observer.observe(root, { childList: true, subtree: true })
 }
 
 export function stopTopBarTooltips(): void {

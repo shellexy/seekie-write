@@ -7,11 +7,6 @@ import {
   IconOpen,
   IconSave,
   IconSaveAs,
-  IconUndo,
-  IconRedo,
-  IconFind,
-  IconReplace,
-  IconSettings,
   IconSidebar,
   IconMinimize,
   IconMaximize,
@@ -23,13 +18,15 @@ import {
 export interface TitleBarActions {
   onNew: () => void
   onOpen: () => void
+  onOpenPath: (path: string) => void
   onSave: () => void
   onSaveAs: () => void
-  onUndo: () => void
-  onRedo: () => void
-  onFind: () => void
-  onReplace: () => void
-  onSettings: () => void
+  onExportMarkdown: () => void
+  onExportHtml: () => void
+  onExportDocx: () => void
+  onExportPdf: () => void
+  onPrint: () => void
+  onPrintPreview: () => void
   onActivateTab: (id: string) => void
   onCloseTab: (id: string) => void
   onCloseOtherTabs: (id: string) => void
@@ -45,9 +42,12 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
   const selCount = useApp((s) => s.selCount)
   const charset = useApp((s) => s.charset)
   const sidebarVisible = useApp((s) => s.sidebarVisible)
+  const recentFiles = useApp((s) => s.settings.recentFiles)
   const toggleSidebar = useApp((s) => s.toggleSidebar)
   const [maximized, setMaximized] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
+  const [recentOpen, setRecentOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const [tabsOverflow, setTabsOverflow] = useState(false)
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
   const [tabContext, setTabContext] = useState<{ tabId: string; x: number; y: number } | null>(null)
@@ -98,6 +98,53 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
   const contextTab = tabContext ? (tabs.find((tab) => tab.id === tabContext.tabId) ?? null) : null
   const contextIndex = contextTab ? tabs.findIndex((tab) => tab.id === contextTab.id) : -1
   const contextPath = contextTab ? (contextTab.savePath ?? contextTab.sourcePath) : null
+
+  useEffect(() => {
+    if (!recentOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('.open-split')) {
+        setRecentOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRecentOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [recentOpen])
+
+  useEffect(() => {
+    if (!exportOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('.saveas-split')) {
+        setExportOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExportOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [exportOpen])
+
+  useEffect(() => {
+    const strip = tabStripRef.current
+    if (!strip || !activeId) return
+    const el = strip.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(activeId)}"]`)
+    if (!el) return
+    const sr = strip.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    if (er.left < sr.left) strip.scrollLeft -= sr.left - er.left + 8
+    else if (er.right > sr.right) strip.scrollLeft += er.right - sr.right + 8
+  }, [activeId, tabs.length])
 
   useEffect(() => {
     if (!tabContext) return
@@ -155,40 +202,146 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
           <button className="icon-btn" onClick={actions.onNew} title="新建（Ctrl+N）" aria-label="新建">
             <IconNew />
           </button>
-          <button className="icon-btn" onClick={actions.onOpen} title="打开（Ctrl+O）" aria-label="打开">
-            <IconOpen />
-          </button>
+          <div className="open-split">
+            <button className="icon-btn" onClick={actions.onOpen} title="打开（Ctrl+O）" aria-label="打开">
+              <IconOpen />
+            </button>
+            <button
+              className="icon-btn open-split__arrow"
+              onClick={() => setRecentOpen((open) => !open)}
+              title="最近打开"
+              aria-label="最近打开"
+            >
+              <IconChevron width={12} height={12} />
+            </button>
+            {recentOpen && (
+              <div className="recent-menu">
+                {recentFiles.length === 0 ? (
+                  <div className="recent-menu__empty">暂无最近文件</div>
+                ) : (
+                  recentFiles.map((path) => {
+                    const name = path.split(/[\\/]/).pop() || path
+                    const dir = path.slice(0, Math.max(0, path.length - name.length)).replace(/[\\/]$/, '')
+                    return (
+                      <button
+                        key={path}
+                        className="recent-menu__item"
+                        title={path}
+                        onClick={() => {
+                          actions.onOpenPath(path)
+                          setRecentOpen(false)
+                        }}
+                      >
+                        <span className="recent-menu__name">{name}</span>
+                        <span className="recent-menu__dir">{dir}</span>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            )}
+          </div>
           <button className="icon-btn" onClick={actions.onSave} title="保存（Ctrl+S）" aria-label="保存">
             <IconSave />
           </button>
-          <button
-            className="icon-btn"
-            onClick={actions.onSaveAs}
-            title="另存为（Ctrl+Shift+S）"
-            aria-label="另存为"
-          >
-            <IconSaveAs />
-          </button>
-        </div>
-
-        <span className="vr" />
-
-        <div className="file-group">
-          <button className="icon-btn" onClick={actions.onUndo} title="撤销（Ctrl+Z）" aria-label="撤销">
-            <IconUndo />
-          </button>
-          <button className="icon-btn" onClick={actions.onRedo} title="重做（Ctrl+Shift+Z）" aria-label="重做">
-            <IconRedo />
-          </button>
+          <div className="saveas-split">
+            <button
+              className="icon-btn"
+              onClick={() => setExportOpen((open) => !open)}
+              title="另存为 / 导出"
+              aria-label="另存为 / 导出"
+            >
+              <IconSaveAs />
+            </button>
+            {exportOpen && (
+              <div className="export-menu">
+                <button
+                  className="export-menu__item"
+                  onClick={() => {
+                    setExportOpen(false)
+                    actions.onSaveAs()
+                  }}
+                >
+                  另存为…
+                </button>
+                <div className="export-menu__sep" />
+                <button
+                  className="export-menu__item"
+                  onClick={() => {
+                    setExportOpen(false)
+                    actions.onExportMarkdown()
+                  }}
+                >
+                  导出 Markdown（单文件）
+                </button>
+                <button
+                  className="export-menu__item"
+                  onClick={() => {
+                    setExportOpen(false)
+                    actions.onExportHtml()
+                  }}
+                >
+                  导出 HTML（单文件）
+                </button>
+                <button
+                  className="export-menu__item"
+                  onClick={() => {
+                    setExportOpen(false)
+                    actions.onExportDocx()
+                  }}
+                >
+                  导出 docx
+                </button>
+                <button
+                  className="export-menu__item"
+                  onClick={() => {
+                    setExportOpen(false)
+                    actions.onExportPdf()
+                  }}
+                >
+                  导出 PDF
+                </button>
+                <div className="export-menu__sep" />
+                <button
+                  className="export-menu__item"
+                  onClick={() => {
+                    setExportOpen(false)
+                    actions.onPrint()
+                  }}
+                >
+                  打印
+                </button>
+                <button
+                  className="export-menu__item"
+                  onClick={() => {
+                    setExportOpen(false)
+                    actions.onPrintPreview()
+                  }}
+                >
+                  打印预览
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {tabs.length > 0 && (
           <>
             <span className="vr" />
-            <div className="tabstrip" role="tablist" ref={tabStripRef}>
+            <div
+              className="tabstrip"
+              role="tablist"
+              ref={tabStripRef}
+              onWheel={(e) => {
+                if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                  e.currentTarget.scrollLeft += e.deltaY
+                }
+              }}
+            >
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
+                  data-tab-id={tab.id}
                   role="tab"
                   aria-selected={tab.id === activeId}
                   className={`tab${tab.id === activeId ? ' is-active' : ''}${
@@ -282,28 +435,6 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
 
       {/* 拖拽区：填充剩余空间 */}
       <div className="titlebar__drag" />
-
-      <div className="titlebar__right no-drag">
-        <button className="icon-btn" onClick={actions.onFind} title="查找（Ctrl+F）" aria-label="查找">
-          <IconFind />
-        </button>
-        <button
-          className="icon-btn"
-          onClick={actions.onReplace}
-          title="替换（Ctrl+H）"
-          aria-label="替换"
-        >
-          <IconReplace />
-        </button>
-        <button
-          className="icon-btn"
-          onClick={actions.onSettings}
-          title="设置（Ctrl+,）"
-          aria-label="设置"
-        >
-          <IconSettings />
-        </button>
-      </div>
 
       {!sidebarVisible && (
         <div

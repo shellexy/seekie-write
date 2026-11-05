@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, rmSync, writeFileSync, renameSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import type { DraftState, SessionState } from '../../shared/types'
+import type { DraftState, OpenTabSnapshot, SessionState } from '../../shared/types'
 import { draftsDir, sessionPath } from './settings'
 
 /**
@@ -56,7 +56,20 @@ function mergeSession(draft: DraftState): void {
   const session = readSession()
   const tabs = session.tabs.filter((t) => t.tabId !== draft.tabId)
   tabs.push(draft)
-  writeSession({ tabs, activeTabId: session.activeTabId ?? draft.tabId })
+  writeSession({
+    ...session,
+    tabs,
+    activeTabId: session.activeTabId ?? draft.tabId,
+  })
+}
+
+/** 退出前记录所有有落盘路径的标签，供“启动时恢复上次打开的文件”使用 */
+export function saveOpenTabs(
+  openTabs: OpenTabSnapshot[],
+  activeSavePath: string | null,
+): void {
+  const session = readSession()
+  writeSession({ ...session, openTabs, activeSavePath })
 }
 
 export function setActiveDraft(tabId: string): void {
@@ -80,5 +93,10 @@ export function loadSession(): SessionState {
   const activeTabId = tabs.some((t) => t.tabId === session.activeTabId)
     ? session.activeTabId
     : tabs[0]?.tabId ?? null
-  return { tabs, activeTabId }
+  return {
+    tabs,
+    openTabs: session.openTabs ?? [],
+    activeTabId,
+    activeSavePath: session.activeSavePath ?? null,
+  }
 }

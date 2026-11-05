@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Crepe } from '@milkdown/crepe'
+import { marked } from 'marked'
 import type { Ctx } from '@milkdown/kit/ctx'
 import { editorViewCtx } from '@milkdown/kit/core'
 import type { ImageSaveMode, SaveKind } from '@shared/types'
@@ -12,11 +13,17 @@ import { TabStore, scrollToPos, selectRange } from './editor/tabs'
 import { EditorSession, type EditorSnapshot } from './editor/session'
 import { runEditorCommand } from './editor/commandBus'
 import { copySelection } from './editor/clipboard'
-import { installTopBarTooltips, stopTopBarTooltips } from './editor/topBarConfig'
+import { installTopBarTooltips, setMoreMenuHandler, stopTopBarTooltips } from './editor/topBarConfig'
 import { setAssetAddedHandler, setAssetTab } from './lib/assets'
 import { saveTab } from './lib/files'
 import { fileName, tabId as makeTabId } from './lib/titleFromPath'
 import { activeOutlineId, type OutlineItem } from './lib/outline'
+import {
+  buildPrintPreviewHtml,
+  buildStandaloneHtml,
+  exportViaDialog,
+  inlineAssets,
+} from './lib/exporters'
 
 import { TitleBar } from './components/TitleBar'
 import { Outline } from './components/Outline'
@@ -24,9 +31,12 @@ import { EditorPane } from './components/EditorPane'
 import { SidebarFooter } from './components/SidebarFooter'
 import { FindBar, type FindMode } from './components/FindBar'
 import { SettingsDialog } from './components/SettingsDialog'
+import { TopBarMenu } from './components/TopBarMenu'
+import { SourceCodeDialog } from './components/SourceCodeDialog'
+import { AboutDialog } from './components/AboutDialog'
 import { Toast, ConvertingOverlay, ConfirmDialog, ImageModeDialog } from './components/Overlays'
 
-const BLANK_DOC = '# 未命名\n\n'
+const BLANK_DOC = ''
 
 const SAVE_RANK: Record<SaveKind, number> = { auto: 0, manual: 1, saveAs: 2 }
 
@@ -61,6 +71,10 @@ export default function App() {
     mode: 'find',
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [sourceOpen, setSourceOpen] = useState(false)
+  const [sourceText, setSourceText] = useState('')
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [draggingSidebarWidth, setDraggingSidebarWidth] = useState<number | null>(null)
   const [confirmState, setConfirmState] = useState<{
     open: boolean
@@ -225,6 +239,114 @@ export default function App() {
     [doSave],
   )
 
+  /* ----------------------------- 导出 / 打印 ----------------------------- */
+
+  // 顶栏 ⋮ 菜单：Crepe 的按钮点击后由 React 打开菜单
+  useEffect(() => {
+    setMoreMenuHandler(() => setMoreOpen(true))
+    return () => setMoreMenuHandler(null)
+  }, [])
+
+  const activeExport = useCallback(() => {
+    const state = useApp.getState()
+    const id = state.activeId
+    if (!id) return null
+    const tab = state.tabs.find((item) => item.id === id)
+    const store = tabStoreRef.current
+    if (!tab || !store) return null
+    const markdown = store.markdownOf(id)
+    const baseName = (tab.savePath ? fileName(tab.savePath) : tab.title).replace(
+      /\.(md|markdown|txt)$/i,
+      '',
+    )
+    return { tab, baseName, markdown }
+  }, [])
+
+  const exportDocument = useCallback(
+    async (kind: 'md' | 'html' | 'docx') => {
+      const data = activeExport()
+      if (!data) {
+        notify('没有可导出的文档')
+        return
+      }
+      try {
+        const inlined = inlineAssets(data.markdown, data.tab.assets)
+        if (inlined.missing > 0) notify(`有 ${inlined.missing} 张图片不在资源仓库里，已保留原占位`)
+
+        if (kind === 'md') {
+          const saved = await exportViaDialog({
+            fileName: `${data.baseName}.md`,
+            content: inlined.markdown,
+            extensions: ['md'],
+          })
+          if (saved) notify(`已导出 ${fileName(saved)}`)
+          return
+        }
+
+        const html = marked.parse(inlined.markdown, { async: false }) as string
+        if (kind === 'html') {
+          const saved = await exportViaDialog({
+            fileName: `${data.baseName}.html`,
+            content: buildStandaloneHtml(data.baseName, html),
+            extensions: ['html'],
+          })
+          if (saved) notify(`已导出 ${fileName(saved)}`)
+          return
+        }
+
+        // docx：在渲染进程里转，浏览器环境才会启用图片插件
+        const { md2docx } = await import('@m2d/md2docx')
+        const blob = (await md2docx(inlined.markdown, undefined, undefined, 'blob')) as Blob
+        const saved = await exportViaDialog({
+          fileName: `${data.baseName}.docx`,
+          data: new Uint8Array(await blob.arrayBuffer()),
+          extensions: ['docx'],
+        })
+        if (saved) notify(`已导出 ${fileName(saved)}`)
+      } catch (err) {
+        notify(`导出失败：${err instanceof Error ? err.message : String(err)}`)
+      }
+    },
+    [activeExport, notify],
+  )
+
+  const exportPdfActive = useCallback(async () => {
+    const data = activeExport()
+    if (!data) return
+    try {
+      const saved = await api.print.toPdf(`${data.baseName}.pdf`)
+      if (saved) notify(`已导出 ${fileName(saved)}`)
+    } catch (err) {
+      notify(`导出 PDF 失败：${err instanceof Error ? err.message : String(err)}`)
+    }
+  }, [activeExport, notify])
+
+  const printActive = useCallback(async () => {
+    try {
+      await api.print.now()
+    } catch (err) {
+      notify(`打印失败：${err instanceof Error ? err.message : String(err)}`)
+    }
+  }, [notify])
+
+  const printPreviewActive = useCallback(async () => {
+    const data = activeExport()
+    if (!data) return
+    try {
+      const inlined = inlineAssets(data.markdown, data.tab.assets)
+      const html = marked.parse(inlined.markdown, { async: false }) as string
+      await api.print.preview(data.baseName, buildPrintPreviewHtml(data.baseName, html))
+    } catch (err) {
+      notify(`打印预览失败：${err instanceof Error ? err.message : String(err)}`)
+    }
+  }, [activeExport, notify])
+
+  const openSource = useCallback(() => {
+    const state = useApp.getState()
+    setSourceText(state.activeId ? (tabStoreRef.current?.markdownOf(state.activeId) ?? '') : '')
+    setSourceOpen(true)
+  }, [])
+
   /* ----------------------------- 编辑器启动 ----------------------------- */
 
   const restoreSession = useCallback(async () => {
@@ -232,10 +354,19 @@ export default function App() {
     if (!store) return
     const session = await api.draft.loadSession()
 
-    if (session.tabs.length === 0) {
-      // 取最新状态：等待 loadSession 期间可能已经通过启动参数打开了文件
+    if (!useApp.getState().settings.restoreLastFiles) {
       if (useApp.getState().tabs.length === 0) newTabRef.current?.()
       return
+    }
+
+    let restored = false
+
+    // 先重开上次有落盘路径的文件；已删除的跳过
+    for (const open of session.openTabs ?? []) {
+      if (!open.savePath) continue
+      if ((await api.file.mtime(open.savePath)) == null) continue
+      await openPathRef.current?.(open.savePath)
+      restored = true
     }
 
     for (const draft of session.tabs) {
@@ -257,12 +388,38 @@ export default function App() {
         mtime: draft.savePath ? await api.file.mtime(draft.savePath) : null,
         scrollTop: 0,
       })
+      restored = true
     }
-    const target =
-      session.activeTabId && store.has(session.activeTabId) ? session.activeTabId : session.tabs[0]?.tabId
-    if (target) activateRef.current?.(target)
-    notify('已恢复上次的编辑会话')
+
+    if (session.activeSavePath) {
+      const target = useApp
+        .getState()
+        .tabs.find((tab) => tab.savePath === session.activeSavePath)
+      if (target) activateRef.current?.(target.id)
+    } else if (session.activeTabId && store.has(session.activeTabId)) {
+      activateRef.current?.(session.activeTabId)
+    }
+
+    if (!restored) {
+      if (useApp.getState().tabs.length === 0) newTabRef.current?.()
+      return
+    }
+    notify('已恢复上次打开的文件')
   }, [notify])
+
+  const saveOpenTabsSnapshot = useCallback(async () => {
+    const state = useApp.getState()
+    const openTabs = state.tabs
+      .filter((tab) => !!tab.savePath)
+      .map((tab) => ({
+        savePath: tab.savePath as string,
+        sourcePath: tab.sourcePath,
+        sourceExt: tab.sourceExt,
+        title: tab.title,
+      }))
+    const active = state.tabs.find((tab) => tab.id === state.activeId)
+    await api.session.saveOpenTabs(openTabs, active?.savePath ?? null)
+  }, [])
 
   const newTab = useCallback(() => {
     const store = tabStoreRef.current
@@ -273,7 +430,7 @@ export default function App() {
     store.register(id, state)
     useApp.getState().upsertTab({
       id,
-      title: `未命名-${untitledSeq.current}`,
+      title: `新文档-${untitledSeq.current}`,
       dirty: false,
       sourcePath: null,
       sourceExt: null,
@@ -374,6 +531,22 @@ export default function App() {
   )
   activateRef.current = activate
   newTabRef.current = newTab
+
+  // Ctrl+Tab / Ctrl+Shift+Tab 在标签间循环
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.key !== 'Tab') return
+      e.preventDefault()
+      const state = useApp.getState()
+      const list = state.tabs
+      if (list.length < 2) return
+      const index = list.findIndex((tab) => tab.id === state.activeId)
+      const next = (index + (e.shiftKey ? -1 : 1) + list.length) % list.length
+      activate(list[next].id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [activate])
 
   const closeTab = useCallback(
     (id: string) => {
@@ -543,6 +716,14 @@ export default function App() {
         })
         setAssetTab(id)
         activate(id)
+        const openedPath = result.sourcePath ?? path
+        if (openedPath) {
+          const previous = useApp.getState().settings.recentFiles ?? []
+          const next = [openedPath, ...previous.filter((item) => item !== openedPath)].slice(0, 12)
+          if (next[0] !== previous[0] || next.length !== previous.length) {
+            useApp.getState().updateSettings({ recentFiles: next })
+          }
+        }
         if (result.converted) {
           if (result.assets.length) await api.asset.register(id, result.assets)
           const inlined = result.inlinedImages ?? 0
@@ -670,12 +851,13 @@ export default function App() {
   // 主进程要关窗口：先把无路径标签写进草稿区
   useEffect(() => {
     return api.app.onBeforeClose(async () => {
+      await saveOpenTabsSnapshot()
       const state = useApp.getState()
       for (const tab of state.tabs) {
         if (!tab.savePath && tab.dirty) await saveDraftIfNeeded(tab.id)
       }
     })
-  }, [saveDraftIfNeeded])
+  }, [saveDraftIfNeeded, saveOpenTabsSnapshot])
 
   // 有路径的标签：定时兜底自动保存 + 定期比对 mtime 检测外部修改
   useEffect(() => {
@@ -803,19 +985,15 @@ export default function App() {
             void api.file.pickOpen().then((p) => {
               if (p) void openPath(p)
             }),
+          onOpenPath: (path: string) => void openPath(path),
           onSave: () => saveActive('manual'),
           onSaveAs: () => saveActive('saveAs'),
-          onUndo: () => {
-            const ctx = ctxRef.current
-            if (ctx) runEditorCommand(ctx, 'edit:undo')
-          },
-          onRedo: () => {
-            const ctx = ctxRef.current
-            if (ctx) runEditorCommand(ctx, 'edit:redo')
-          },
-          onFind: () => setFindState({ open: true, mode: 'find' }),
-          onReplace: () => setFindState({ open: true, mode: 'replace' }),
-          onSettings: () => setSettingsOpen(true),
+          onExportMarkdown: () => void exportDocument('md'),
+          onExportHtml: () => void exportDocument('html'),
+          onExportDocx: () => void exportDocument('docx'),
+          onExportPdf: () => void exportPdfActive(),
+          onPrint: () => void printActive(),
+          onPrintPreview: () => void printPreviewActive(),
           onActivateTab: activate,
           onCloseTab: closeTab,
           onCloseOtherTabs: closeOtherTabs,
@@ -885,6 +1063,32 @@ export default function App() {
         onCancel={() => setConfirmState((c) => ({ ...c, open: false }))}
         onConfirm={confirmState.onConfirm}
       />
+
+      <TopBarMenu
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        onUndo={() => {
+          const ctx = ctxRef.current
+          if (ctx) runEditorCommand(ctx, 'edit:undo')
+        }}
+        onRedo={() => {
+          const ctx = ctxRef.current
+          if (ctx) runEditorCommand(ctx, 'edit:redo')
+        }}
+        onFind={() => setFindState({ open: true, mode: 'find' })}
+        onReplace={() => setFindState({ open: true, mode: 'replace' })}
+        onSource={openSource}
+        onSettings={() => setSettingsOpen(true)}
+        onAbout={() => setAboutOpen(true)}
+      />
+
+      <SourceCodeDialog
+        open={sourceOpen}
+        markdownText={sourceText}
+        onClose={() => setSourceOpen(false)}
+      />
+
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
 
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 

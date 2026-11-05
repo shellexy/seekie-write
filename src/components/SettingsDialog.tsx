@@ -135,6 +135,14 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 onChange={(e) => patch({ openInlineImages: e.target.checked })}
               />
             </label>
+            <label className="settings__row">
+              <span>启动时恢复上次打开的文件</span>
+              <input
+                type="checkbox"
+                checked={settings.restoreLastFiles}
+                onChange={(e) => patch({ restoreLastFiles: e.target.checked })}
+              />
+            </label>
             <p className="settings__hint">
               打开 Word / PPT / Excel 等文档时，把内嵌图片直接写成 data URI；文档自包含，但体积约增加
               33%，保存时保持内嵌。PDF 无法提取内嵌图片。
@@ -157,6 +165,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                 sidebarVisible: DEFAULT_SETTINGS.sidebarVisible,
                 sidebarWidth: DEFAULT_SETTINGS.sidebarWidth,
                 openInlineImages: DEFAULT_SETTINGS.openInlineImages,
+                restoreLastFiles: DEFAULT_SETTINGS.restoreLastFiles,
               })
             }
           >

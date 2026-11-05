@@ -14,4 +14,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lastOpenDir: '',
   lastSaveDir: '',
   openInlineImages: false,
+  restoreLastFiles: true,
+  recentFiles: [],
 }

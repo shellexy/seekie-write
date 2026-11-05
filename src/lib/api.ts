@@ -1,10 +1,13 @@
 import type {
+  AppInfo,
   AppSettings,
   ClipboardPayload,
   DocAsset,
   DraftState,
+  ExportRequest,
   MenuCommandPayload,
   OpenResult,
+  OpenTabSnapshot,
   SaveRequest,
   SaveResult,
   SessionState,
@@ -44,8 +47,14 @@ const mock = {
       title: path,
     }),
     save: async (): Promise<SaveResult> => ({ status: 'canceled' }),
+    export: async (_req: ExportRequest) => null,
     mtime: async () => null,
     reveal: async () => {},
+  },
+  print: {
+    toPdf: async (_fileName: string) => null,
+    now: async () => false,
+    preview: async (_title: string, _html: string) => false,
   },
   asset: {
     register: async () => true,
@@ -59,6 +68,9 @@ const mock = {
     }),
     drop: async () => true,
     loadSession: async (): Promise<SessionState> => ({ tabs: [], activeTabId: null }),
+  },
+  session: {
+    saveOpenTabs: async (_tabs: OpenTabSnapshot[], _activeSavePath: string | null) => true,
   },
   settings: {
     get: async (): Promise<AppSettings> => {
@@ -89,6 +101,12 @@ const mock = {
     },
   },
   app: {
+    info: async (): Promise<AppInfo> => ({
+      version: '0.1.0',
+      electron: '-',
+      node: '-',
+      homepage: 'https://github.com/shellexy/seekie-write',
+    }),
     onOpenFile: (_cb: (p: string) => void) => unsub(),
     takeStartupFile: async () => null,
     toggleDevTools: async () => {},
@@ -112,8 +130,14 @@ export interface SeekieApi {
     openPath: (path: string) => Promise<boolean>
     read: (path: string, tabId: string) => Promise<OpenResult>
     save: (req: SaveRequest) => Promise<SaveResult>
+    export: (req: ExportRequest) => Promise<string | null>
     mtime: (path: string | null) => Promise<number | null>
     reveal: (path: string) => Promise<void>
+  }
+  print: {
+    toPdf: (fileName: string) => Promise<string | null>
+    now: () => Promise<boolean>
+    preview: (title: string, html: string) => Promise<boolean>
   }
   asset: {
     register: (tabId: string, list: DocAsset[]) => Promise<boolean>
@@ -124,6 +148,9 @@ export interface SeekieApi {
     save: (draft: Omit<DraftState, 'draftPath'>) => Promise<DraftState>
     drop: (tabId: string) => Promise<boolean>
     loadSession: () => Promise<SessionState>
+  }
+  session: {
+    saveOpenTabs: (openTabs: OpenTabSnapshot[], activeSavePath: string | null) => Promise<boolean>
   }
   settings: {
     get: () => Promise<AppSettings>
@@ -136,6 +163,7 @@ export interface SeekieApi {
     write: (payload: ClipboardPayload) => Promise<boolean>
   }
   app: {
+    info: () => Promise<AppInfo>
     onOpenFile: (cb: (path: string) => void) => () => void
     takeStartupFile: () => Promise<string | null>
     toggleDevTools: () => Promise<void>

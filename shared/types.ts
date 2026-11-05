@@ -92,9 +92,20 @@ export interface DraftState {
   draftPath: string
 }
 
+/** 有落盘路径的标签，退出时记下来供下次启动重开 */
+export interface OpenTabSnapshot {
+  savePath: string
+  sourcePath: string | null
+  sourceExt: string | null
+  title: string
+}
+
 export interface SessionState {
   tabs: DraftState[]
+  /** 上次退出时打开的、已有落盘路径的文件 */
+  openTabs?: OpenTabSnapshot[]
   activeTabId: string | null
+  activeSavePath?: string | null
 }
 
 export interface AppSettings {
@@ -115,6 +126,10 @@ export interface AppSettings {
   lastSaveDir: string
   /** 打开 Office / PDF 等文档时，把内嵌图片直接写成 base64 data URI */
   openInlineImages: boolean
+  /** 启动时恢复上次打开的文件（含草稿） */
+  restoreLastFiles: boolean
+  /** 最近打开的文件（绝对路径） */
+  recentFiles: string[]
 }
 
 export interface WindowStatePayload {
@@ -132,6 +147,25 @@ export interface ClipboardPayload {
   html?: string
 }
 
+export interface AppInfo {
+  version: string
+  electron: string
+  node: string
+  homepage: string
+}
+
+/** 单文件导出（md / html / docx）：主进程弹另存对话框并写文件 */
+export interface ExportRequest {
+  /** 默认文件名，如 报告.html */
+  fileName: string
+  /** 文本内容（md / html） */
+  content?: string
+  /** 二进制内容（docx） */
+  data?: Uint8Array
+  /** 扩展名过滤（不含点），如 ['html'] */
+  extensions: string[]
+}
+
 export const IPC = {
   // 窗口
   winMinimize: 'win:minimize',
@@ -140,6 +174,8 @@ export const IPC = {
   winIsMaximized: 'win:is-maximized',
   winMaximizedChanged: 'win:maximized-changed',
   winSetTitle: 'win:set-title',
+  // 应用信息
+  appInfo: 'app:info',
   // 菜单
   menuCommand: 'menu:command',
   // 剪贴板
@@ -150,6 +186,11 @@ export const IPC = {
   fileReadMarkdown: 'file:read-markdown',
   fileSave: 'file:save',
   fileReveal: 'file:reveal',
+  // 导出 / 打印
+  fileExport: 'file:export',
+  printToPdf: 'print:to-pdf',
+  printNow: 'print:print',
+  printPreview: 'print:preview',
   // 资源
   assetRegister: 'asset:register',
   assetPut: 'asset:put',
@@ -158,6 +199,7 @@ export const IPC = {
   draftSave: 'draft:save',
   draftDrop: 'draft:drop',
   draftLoadSession: 'draft:load-session',
+  sessionSaveOpenTabs: 'session:save-open-tabs',
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   // 打开文件（从菜单 / 第二实例 / 拖拽）

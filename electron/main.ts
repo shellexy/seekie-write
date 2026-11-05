@@ -14,9 +14,12 @@ import { join, resolve } from 'node:path'
 import { statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type {
+  AppInfo,
   AppSettings,
   ClipboardPayload,
   DraftState,
+  ExportRequest,
+  OpenTabSnapshot,
   SaveRequest,
   WindowStatePayload,
   DocAsset,
@@ -26,6 +29,7 @@ import * as assetStore from './lib/assetStore'
 import { getSettings, setSettings } from './lib/settings'
 import * as drafts from './lib/drafts'
 import { mtimeOf, openDocument, pickOpenFile, revealInFolder, saveDocument } from './lib/files'
+import { closePrintPreview, exportFile, exportPdf, openPrintPreview, printWindow } from './lib/export'
 
 const __dirname_ = fileURLToPath(new URL('.', import.meta.url))
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -146,6 +150,8 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null
+    // 打印预览是独立窗口；主窗口关闭后一并关掉，否则 app 不会退出
+    closePrintPreview()
   })
 
   // 拖文件进窗口：把路径交给渲染层打开
@@ -176,9 +182,9 @@ function createWindow(): void {
       { label: '重做', click: send('edit:redo') },
       { type: 'separator' },
       { label: '剪切', role: 'cut', enabled: params.editFlags.canCut },
-      { label: '复制选中（纯文本）', enabled: hasSelection, click: () => void clipboard.writeText(params.selectionText) },
-      { label: '复制选中（Markdown）', enabled: hasSelection, click: send('clipboard:copy-markdown') },
-      { label: '复制选中（富文本）', enabled: hasSelection, click: send('clipboard:copy-html') },
+      { label: '复制（纯文本）', enabled: hasSelection, click: () => void clipboard.writeText(params.selectionText) },
+      { label: '复制（Markdown）', enabled: hasSelection, click: send('clipboard:copy-markdown') },
+      { label: '复制（富文本）', enabled: hasSelection, click: send('clipboard:copy-html') },
       { label: '粘贴', role: 'paste', enabled: params.editFlags.canPaste },
       { label: '全选', role: 'selectAll', enabled: params.editFlags.canSelectAll },
       { type: 'separator' },
@@ -311,6 +317,15 @@ function registerIpc(): void {
   ipcMain.on(IPC.winSetTitle, (_e, title: string) => {
     mainWindow?.setTitle(title)
   })
+  ipcMain.handle(
+    IPC.appInfo,
+    (): AppInfo => ({
+      version: app.getVersion(),
+      electron: process.versions.electron,
+      node: process.versions.node,
+      homepage: 'https://github.com/shellexy/seekie-write',
+    }),
+  )
 
   ipcMain.handle(IPC.fileOpenDialog, async () => pickOpenFile(mainWindow))
   ipcMain.handle(IPC.clipboardWrite, async (_e, payload: ClipboardPayload) => {
@@ -345,6 +360,12 @@ function registerIpc(): void {
   })
   ipcMain.handle(IPC.fileSave, async (_e, req: SaveRequest) => saveDocument(mainWindow, req))
   ipcMain.handle(IPC.fileReveal, async (_e, path: string) => revealInFolder(path))
+  ipcMain.handle(IPC.fileExport, async (_e, req: ExportRequest) => exportFile(mainWindow, req))
+  ipcMain.handle(IPC.printToPdf, async (_e, fileName: string) => exportPdf(mainWindow, fileName))
+  ipcMain.handle(IPC.printNow, async () => printWindow(mainWindow))
+  ipcMain.handle(IPC.printPreview, async (_e, title: string, html: string) =>
+    openPrintPreview(title, html),
+  )
   ipcMain.handle('file:mtime', async (_e, path: string | null) => mtimeOf(path))
 
   ipcMain.handle(IPC.assetRegister, async (_e, tabId: string, list: DocAsset[]) => {
@@ -363,6 +384,13 @@ function registerIpc(): void {
   ipcMain.handle(IPC.draftSave, async (_e, draft: Omit<DraftState, 'draftPath'>) => drafts.saveDraft(draft))
   ipcMain.handle(IPC.draftDrop, async (_e, tabId: string) => drafts.dropDraft(tabId))
   ipcMain.handle(IPC.draftLoadSession, async () => drafts.loadSession())
+  ipcMain.handle(
+    IPC.sessionSaveOpenTabs,
+    async (_e, openTabs: OpenTabSnapshot[], activeSavePath: string | null) => {
+      drafts.saveOpenTabs(openTabs, activeSavePath)
+      return true
+    },
+  )
   ipcMain.handle(IPC.settingsGet, async () => getSettings())
   ipcMain.handle(IPC.settingsSet, async (_e, patch: Partial<AppSettings>) => setSettings(patch))
   ipcMain.handle('app:toggle-dev-tools', async () => mainWindow?.webContents.toggleDevTools())

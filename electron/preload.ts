@@ -1,12 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types'
 import type {
+  AppInfo,
   AppSettings,
   ClipboardPayload,
   DocAsset,
   DraftState,
+  ExportRequest,
   MenuCommandPayload,
   OpenResult,
+  OpenTabSnapshot,
   SaveRequest,
   SaveResult,
   SessionState,
@@ -35,8 +38,15 @@ const api = {
     read: (path: string, tabId: string): Promise<OpenResult> =>
       ipcRenderer.invoke(IPC.fileReadMarkdown, path, tabId),
     save: (req: SaveRequest): Promise<SaveResult> => ipcRenderer.invoke(IPC.fileSave, req),
+    export: (req: ExportRequest): Promise<string | null> => ipcRenderer.invoke(IPC.fileExport, req),
     mtime: (path: string | null): Promise<number | null> => ipcRenderer.invoke('file:mtime', path),
     reveal: (path: string): Promise<void> => ipcRenderer.invoke(IPC.fileReveal, path),
+  },
+  print: {
+    toPdf: (fileName: string): Promise<string | null> => ipcRenderer.invoke(IPC.printToPdf, fileName),
+    now: (): Promise<boolean> => ipcRenderer.invoke(IPC.printNow),
+    preview: (title: string, html: string): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.printPreview, title, html),
   },
   asset: {
     register: (tabId: string, list: DocAsset[]) => ipcRenderer.invoke(IPC.assetRegister, tabId, list),
@@ -48,6 +58,10 @@ const api = {
       ipcRenderer.invoke(IPC.draftSave, draft),
     drop: (tabId: string) => ipcRenderer.invoke(IPC.draftDrop, tabId),
     loadSession: (): Promise<SessionState> => ipcRenderer.invoke(IPC.draftLoadSession),
+  },
+  session: {
+    saveOpenTabs: (openTabs: OpenTabSnapshot[], activeSavePath: string | null): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.sessionSaveOpenTabs, openTabs, activeSavePath),
   },
   settings: {
     get: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.settingsGet),
@@ -66,6 +80,7 @@ const api = {
       ipcRenderer.invoke(IPC.clipboardWrite, payload),
   },
   app: {
+    info: (): Promise<AppInfo> => ipcRenderer.invoke(IPC.appInfo),
     onOpenFile: (cb: (path: string) => void) => {
       const listener = (_e: unknown, path: string) => cb(path)
       ipcRenderer.on(IPC.openFileRequest, listener)

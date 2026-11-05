@@ -63,7 +63,9 @@ export class TabStore {
   createStateFromMarkdown(markdown: string): EditorState {
     const schema = this.ctx.get(schemaCtx)
     const parser = this.ctx.get(parserCtx)
-    const doc = parser(markdown || '')
+    const parsed = parser(markdown || '')
+    // 空字符串解析出来是空 doc，而 schema 要求 block+，补一个空段落
+    const doc = parsed.childCount > 0 ? parsed : (schema.topNodeType.createAndFill() ?? parsed)
     return PSState.create({
       schema,
       plugins: this.getPlugins(),

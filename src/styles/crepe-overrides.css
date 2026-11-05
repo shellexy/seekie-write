@@ -41,6 +41,12 @@
   flex-wrap: wrap;
 }
 
+/* ⋮ 选项菜单固定在顶栏最右侧（TopBar 的按钮是 .top-bar-inner 的直接子元素） */
+.milkdown .milkdown-top-bar .top-bar-inner > .top-bar-item:last-child,
+.milkdown .milkdown-top-bar .top-bar-inner > div:last-child {
+  margin-left: auto;
+}
+
 .milkdown .milkdown-top-bar .top-bar-item {
   width: 30px;
   height: 30px;
