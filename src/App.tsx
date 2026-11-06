@@ -220,6 +220,7 @@ export default function App() {
         })
 
         if (result.status === 'saved' && result.path) {
+          const savedPath = result.path
           ok = true
           savedMarkdown.current.set(id, markdown)
           clearContentCheck(id)
@@ -236,6 +237,24 @@ export default function App() {
           })
           if (useApp.getState().activeId === id) applyImageBase(result.path)
           void api.asset.drop(id)
+          // 转换文档保存为 Markdown 后，把最近文件里对应的源文件原地替换成 .md，
+          // 不改变其它条目的顺序，也不让普通自动保存频繁重排最近文件。
+          if (tab.converted && tab.sourcePath && savedPath !== tab.sourcePath) {
+            const previous = useApp.getState().settings.recentFiles ?? []
+            const index = previous.indexOf(tab.sourcePath)
+            let next: string[]
+            if (index >= 0) {
+              next = previous.map((item, i) => (i === index ? savedPath : item))
+            } else {
+              next = [savedPath, ...previous]
+            }
+            next = next
+              .filter((item, i) => item !== savedPath || i === next.indexOf(savedPath))
+              .slice(0, 12)
+            if (next.some((item, i) => item !== previous[i]) || next.length !== previous.length) {
+              useApp.getState().updateSettings({ recentFiles: next })
+            }
+          }
           if (result.writtenImages) notify(`已保存，并写入 ${result.writtenImages} 张图片`)
         } else if (result.status === 'canceled') {
           patchTab(id, { saveStatus: 'idle' })
