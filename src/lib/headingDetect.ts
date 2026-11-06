@@ -25,13 +25,17 @@ export interface HeadingCandidate {
   existing?: boolean
 }
 
+const SPECIAL_CHAPTER = /^(序|序章|楔子|前言|引言|後記|后记|附錄|附录|結語|结语)$/
+
 const FEATURES: Array<{ re: RegExp; weight: number }> = [
   { re: /^第\s*[0-9一二三四五六七八九十百千万零〇]+\s*[卷篇]/, weight: 100 },
-  { re: /^第\s*[0-9一二三四五六七八九十百千万零〇]+\s*[章回部]/, weight: 80 },
-  { re: /^第\s*[0-9一二三四五六七八九十百千万零〇]+\s*节/, weight: 60 },
+  { re: SPECIAL_CHAPTER, weight: 90 },
+  { re: /^第\s*[0-9一二三四五六七八九十百千万零〇]+\s*[章回部話话]/, weight: 80 },
+  { re: /^第\s*[0-9一二三四五六七八九十百千万零〇]+\s*[节節]/, weight: 60 },
   { re: /^[一二三四五六七八九十百]+\s*、/, weight: 50 },
   { re: /^\d+(\.\d+)+/, weight: 40 },
-  { re: /^\d+[\.、]\s+/, weight: 30 },
+  // “1.引言”这种中文排版中间不一定有空格
+  { re: /^\d+[\.、]\s*/, weight: 30 },
   { re: /^[（(][0-9一二三四五六七八九十百]+[）)]/, weight: 20 },
 ]
 
@@ -93,7 +97,9 @@ export function detectHeadings(doc: PMNode): HeadingCandidate[] {
 
     const text = node.textContent.trim()
     const length = chars(text)
-    if (length < 2 || length > 40) return true
+    // “序”这类特殊篇名只有 1 个字，也要放行
+    if (!SPECIAL_CHAPTER.test(text) && length < 2) return true
+    if (length > 40) return true
     if (!/\p{L}/u.test(text)) return true
     if (DATE_RE.test(text)) return true
 
