@@ -77,6 +77,8 @@ export default function App() {
   const pendingSaves = useRef<Map<string, SaveKind>>(new Map())
   /** 每个标签最近一次打开/保存时的 Markdown；内容回到基线就不算 dirty */
   const savedMarkdown = useRef<Map<string, string>>(new Map())
+  /** 转换文档刚打开时的 Markdown；用来区分“未编辑”和“已编辑但草稿已自动保存” */
+  const convertedBaseline = useRef<Map<string, string>>(new Map())
   /** 停止输入后延迟比对一次 Markdown，撤销回原内容时能及时清掉 dirty */
   const contentCheckTimers = useRef<Map<string, number>>(new Map())
   /** 正在打开的绝对路径，避免双击 / 二次实例并发打开出两个标签 */
@@ -237,6 +239,7 @@ export default function App() {
           })
           if (useApp.getState().activeId === id) applyImageBase(result.path)
           void api.asset.drop(id)
+          convertedBaseline.current.delete(id)
           // 转换文档保存为 Markdown 后，把最近文件里对应的源文件原地替换成 .md，
           // 不改变其它条目的顺序，也不让普通自动保存频繁重排最近文件。
           if (tab.converted && tab.sourcePath && savedPath !== tab.sourcePath) {
@@ -706,8 +709,15 @@ export default function App() {
   const needsClosePrompt = useCallback((tab: TabMeta) => {
     if (tab.dirty) return true
     if (tab.savePath) return false
-    // 草稿标签即使自动保存过草稿，也没有真正落盘，关闭前仍然询问是否保存
-    return Boolean(tabStoreRef.current?.markdownOf(tab.id).trim())
+    const markdown = tabStoreRef.current?.markdownOf(tab.id) ?? ''
+    if (tab.converted) {
+      // 转换文档刚打开、没手动编辑时关闭不需要提示；有编辑而草稿自动保存过，
+      // dirty 可能已经清掉，所以和“刚打开时的 Markdown”比较。
+      const baseline = convertedBaseline.current.get(tab.id)
+      return baseline === undefined ? Boolean(markdown.trim()) : markdown !== baseline
+    }
+    // 普通无路径草稿即使自动保存过草稿，也没有真正落盘，关闭前仍然询问
+    return Boolean(markdown.trim())
   }, [])
 
   const closeNow = useCallback(
@@ -720,6 +730,7 @@ export default function App() {
         pendingSaves.current.delete(tab.id)
         tabStoreRef.current?.drop(tab.id)
         savedMarkdown.current.delete(tab.id)
+        convertedBaseline.current.delete(tab.id)
         clearContentCheck(tab.id)
         useApp.getState().removeTab(tab.id)
         void api.asset.drop(tab.id)
@@ -884,6 +895,7 @@ export default function App() {
           flushTimer(blankId)
           store.drop(blankId)
           savedMarkdown.current.delete(blankId)
+          convertedBaseline.current.delete(blankId)
           clearContentCheck(blankId)
           useApp.getState().removeTab(blankId)
           void api.asset.drop(blankId)
@@ -892,6 +904,7 @@ export default function App() {
         const state = store.createStateFromMarkdown(result.markdown)
         store.register(id, state)
         savedMarkdown.current.set(id, store.markdownOf(id))
+        if (result.converted) convertedBaseline.current.set(id, store.markdownOf(id))
         useApp.getState().upsertTab({
           id,
           title: result.title,
@@ -966,6 +979,8 @@ export default function App() {
         const state = store.createStateFromMarkdown(result.markdown)
         store.register(id, state)
         savedMarkdown.current.set(id, store.markdownOf(id))
+        if (result.converted) convertedBaseline.current.set(id, store.markdownOf(id))
+        else convertedBaseline.current.delete(id)
         patchTab(id, {
           title: result.title,
           dirty: false,

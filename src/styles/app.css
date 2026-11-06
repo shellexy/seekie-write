@@ -1316,6 +1316,12 @@ body.is-resizing * {
   border-color: var(--danger);
   color: #fff;
 }
+.btn--danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  filter: brightness(1.08);
+}
 
 .radio {
   display: flex;
