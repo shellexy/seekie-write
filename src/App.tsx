@@ -1356,6 +1356,9 @@ export default function App() {
             mode={findState.mode}
             getCtx={() => ctxRef.current}
             onClose={() => setFindState((state) => ({ ...state, open: false }))}
+            onWrap={(direction) =>
+              notify(direction === 'next' ? '已回到开头继续搜索' : '已到末尾，继续搜索上一个')
+            }
           />
         </div>
       </div>

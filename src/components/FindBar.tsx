@@ -26,6 +26,7 @@ interface FindBarProps {
   mode: FindMode
   getCtx: () => Ctx | null
   onClose: () => void
+  onWrap?: (direction: 'next' | 'prev') => void
 }
 
 /**
@@ -33,7 +34,7 @@ interface FindBarProps {
  * 高频路径都在当前 ProseMirror doc 上重新算一遍匹配，避免文档被编辑后位置过期。
  */
 export const FindBar = forwardRef<FindBarHandle, FindBarProps>(function FindBar(
-  { open, mode, getCtx, onClose },
+  { open, mode, getCtx, onClose, onWrap },
   ref,
 ) {
   const [query, setQuery] = useState('')
@@ -49,6 +50,17 @@ export const FindBar = forwardRef<FindBarHandle, FindBarProps>(function FindBar(
   const collect = (v: EditorView): SearchMatch[] =>
     query ? findMatches(v.state.doc, query, caseSensitive) : []
 
+  const scrollToCenter = (v: EditorView, pos: number): void => {
+    const scroller = v.dom.closest('.editor-scroll') as HTMLElement | null
+    if (!scroller) return
+    const coords = v.coordsAtPos(Math.min(pos, v.state.doc.content.size))
+    const rect = scroller.getBoundingClientRect()
+    const lineHeight = Math.max(1, coords.bottom - coords.top)
+    const contentTop = scroller.scrollTop + coords.top - rect.top
+    const target = contentTop + lineHeight / 2 - scroller.clientHeight / 2
+    scroller.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+  }
+
   const show = (v: EditorView, list: SearchMatch[], current: number): void => {
     if (!list.length) {
       clearSearchDecorations(v)
@@ -57,10 +69,12 @@ export const FindBar = forwardRef<FindBarHandle, FindBarProps>(function FindBar(
     const safe = Math.min(Math.max(current, 0), list.length - 1)
     setSearchDecorations(v, list, safe)
     const target = list[safe]
-    const tr = v.state.tr
-      .setSelection(TextSelection.create(v.state.doc, target.from, target.to))
-      .scrollIntoView()
+    const tr = v.state.tr.setSelection(
+      TextSelection.create(v.state.doc, target.from, target.to),
+    )
     v.dispatch(tr)
+    // 搜索框保持焦点，但正文需要把当前命中滚到编辑区中间
+    window.requestAnimationFrame(() => scrollToCenter(v, target.from))
   }
 
   const focusInput = (): void => {
@@ -131,10 +145,14 @@ export const FindBar = forwardRef<FindBarHandle, FindBarProps>(function FindBar(
       clearSearchDecorations(v)
       return
     }
-    const next = (index + delta + list.length) % list.length
+    const current = Math.min(Math.max(index, 0), list.length - 1)
+    const wrapped =
+      list.length > 1 && (delta > 0 ? current >= list.length - 1 : current <= 0)
+    const next = (current + delta + list.length) % list.length
     setMatches(list)
     setIndex(next)
     show(v, list, next)
+    if (wrapped) onWrap?.(delta > 0 ? 'next' : 'prev')
   }
 
   const replaceOne = (): void => {

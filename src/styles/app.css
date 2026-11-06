@@ -965,43 +965,56 @@ body.is-resizing * {
 .zh__radios input:disabled + * {
   cursor: default;
 }
-.zh__previews {
+.zh__scroll {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.zh__previews {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  align-items: start;
+  min-height: 100%;
 }
 .zh__pane {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  min-width: 0;
+  padding: 12px 14px 18px;
+}
+.zh__pane + .zh__pane {
+  border-left: 1px solid var(--border);
 }
 .zh__pane h4 {
-  margin: 0 0 6px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -14px 8px;
+  padding: 12px 14px 6px;
+  background: var(--bg);
   font-size: 12px;
   font-weight: 600;
   color: var(--fg-muted);
 }
 .zh__pane textarea {
-  flex: 1 1 auto;
-  min-height: 0;
+  display: block;
+  width: 100%;
+  min-height: 180px;
   resize: none;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--fg);
   font-family: inherit;
   font-size: 13px;
   line-height: 1.75;
   outline: none;
 }
-.zh__pane textarea:focus {
-  border-color: var(--accent);
-}
 .zh__pane textarea[readonly] {
-  background: var(--bg-soft);
+  background: transparent;
   color: var(--fg-muted);
 }
 .dialog--zh .dialog__hint {
@@ -1014,6 +1027,14 @@ body.is-resizing * {
   }
   .zh__previews {
     grid-template-columns: 1fr;
+  }
+  .zh__pane + .zh__pane {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .zh__pane h4 {
+    position: static;
+    margin-top: 0;
   }
 }
 .dialog--source {

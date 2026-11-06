@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Ctx } from '@milkdown/kit/ctx'
 import { editorViewCtx } from '@milkdown/kit/core'
 import {
@@ -30,6 +30,9 @@ export function ChineseConvertDialog({
   const [original, setOriginal] = useState('')
   const [generated, setGenerated] = useState('')
   const [edited, setEdited] = useState('')
+  const originalRef = useRef<HTMLTextAreaElement>(null)
+  const editedRef = useRef<HTMLTextAreaElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const view = () => getCtx()?.get(editorViewCtx) ?? null
 
@@ -76,6 +79,31 @@ export function ChineseConvertDialog({
     setGenerated(converted)
     setEdited(converted)
   }, [open, from, to, direction])
+
+  const fitTextareas = (): void => {
+    for (const element of [originalRef.current, editedRef.current]) {
+      if (!element) continue
+      element.style.height = 'auto'
+      element.style.height = `${element.scrollHeight}px`
+    }
+  }
+
+  // 两个 textarea 都随内容长高，由外层 .zh__scroll 统一滚动
+  useEffect(() => {
+    if (!open) return
+    const raf = window.requestAnimationFrame(fitTextareas)
+    const onResize = () => fitTextareas()
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.cancelAnimationFrame(raf)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [open, original, edited])
+
+  useEffect(() => {
+    if (!open) return
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [open, direction, scope])
 
   useEffect(() => {
     if (!open) return
@@ -177,15 +205,21 @@ export function ChineseConvertDialog({
           </div>
         </div>
 
-        <div className="zh__previews">
-          <section className="zh__pane">
-            <h4>原文预览{scope === 'selection' ? '（选中部分）' : '（全文）'}</h4>
-            <textarea readOnly value={original} />
-          </section>
-          <section className="zh__pane">
-            <h4>转换后预览（可编辑）</h4>
-            <textarea value={edited} onChange={(e) => setEdited(e.target.value)} />
-          </section>
+        <div className="zh__scroll" ref={scrollRef}>
+          <div className="zh__previews">
+            <section className="zh__pane">
+              <h4>原文预览{scope === 'selection' ? '（选中部分）' : '（全文）'}</h4>
+              <textarea ref={originalRef} readOnly value={original} />
+            </section>
+            <section className="zh__pane">
+              <h4>转换后预览（可编辑）</h4>
+              <textarea
+                ref={editedRef}
+                value={edited}
+                onChange={(e) => setEdited(e.target.value)}
+              />
+            </section>
+          </div>
         </div>
 
         <p className="dialog__hint">

@@ -1,4 +1,5 @@
 import type { Ctx } from '@milkdown/kit/ctx'
+import { editorViewCtx } from '@milkdown/kit/core'
 import { applyBlockType, clearFormat } from './topBarConfig'
 import { insertHr, insertImageFromPicker, insertTable } from './insert'
 import { redo, scrollToPos, selectRange, undo } from './tabs'
@@ -20,40 +21,55 @@ export type EditorCommand =
   | 'insert:hr'
 
 export function runEditorCommand(ctx: Ctx, command: string): boolean {
+  const focusEditor = () => {
+    try {
+      ctx.get(editorViewCtx).focus()
+    } catch {
+      /* 编辑器尚未就绪 */
+    }
+  }
+  let handled = true
   switch (command) {
     case 'edit:undo':
       undo(ctx)
-      return true
+      break
     case 'edit:redo':
       redo(ctx)
-      return true
+      break
     case 'format:paragraph':
       applyBlockType(ctx, null)
-      return true
+      break
     case 'format:h1':
       applyBlockType(ctx, 1)
-      return true
+      break
     case 'format:h2':
       applyBlockType(ctx, 2)
-      return true
+      break
     case 'format:h3':
       applyBlockType(ctx, 3)
-      return true
+      break
     case 'format:clear':
       clearFormat(ctx)
-      return true
+      break
     case 'insert:image':
       insertImageFromPicker(ctx)
-      return true
+      break
     case 'insert:table':
       insertTable(ctx)
-      return true
+      break
     case 'insert:hr':
       insertHr(ctx)
-      return true
+      break
     default:
-      return false
+      handled = false
   }
+  if (handled) {
+    // 原生菜单快捷键执行后焦点可能留在菜单/窗口上，主动还给编辑器
+    window.requestAnimationFrame(focusEditor)
+    window.setTimeout(focusEditor, 50)
+    window.setTimeout(focusEditor, 150)
+  }
+  return handled
 }
 
 export { scrollToPos, selectRange }
