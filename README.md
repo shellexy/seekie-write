@@ -8,10 +8,12 @@
 
 * **双击大纲标题**：直接选中整章正文，复制、改写或重排章节更顺手
 * **智能识别标题**：繁简章回节、`1.引言`、独立成行的序 / 楔子 / 前言等都能识别；已有标题按原级别预览
+* **中文简繁转换**：简转繁 / 繁转简 / 台湾正体 / 香港繁体，代码块与链接 URL 自动跳过，双栏预览同步滚动
 * **单文件导出**：Markdown / HTML 导出把图片内嵌为 base64，发给别人不会丢图
 
 ![浅色](docs/screenshot-light.png)
 ![智能识别标题](docs/screenshot-smart-headings.png)
+![中文简繁转换](docs/screenshot-chinese-convert.png)
 ![深色](docs/screenshot-dark.png)
 
 ## 现在能做什么
