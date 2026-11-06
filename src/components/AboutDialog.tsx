@@ -64,6 +64,10 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
             <dd>{info?.electron ?? '…'}</dd>
           </div>
           <div className="about-list__row">
+            <dt>Chromium</dt>
+            <dd>{info?.chromium ?? '…'}</dd>
+          </div>
+          <div className="about-list__row">
             <dt>Node.js</dt>
             <dd>{info?.node ?? '…'}</dd>
           </div>

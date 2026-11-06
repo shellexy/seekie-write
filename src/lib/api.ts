@@ -112,6 +112,7 @@ const mock = {
     info: async (): Promise<AppInfo> => ({
       version: '0.1.0',
       electron: '-',
+      chromium: '-',
       node: '-',
       homepage: 'https://github.com/shellexy/seekie-write',
     }),

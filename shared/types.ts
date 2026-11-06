@@ -154,6 +154,7 @@ export interface ClipboardPayload {
 export interface AppInfo {
   version: string
   electron: string
+  chromium: string
   node: string
   homepage: string
 }

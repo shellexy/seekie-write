@@ -391,9 +391,31 @@ export default function App() {
           return
         }
 
-        // docx：在渲染进程里转，浏览器环境才会启用图片插件
-        const { md2docx } = await import('@m2d/md2docx')
-        const blob = (await md2docx(inlined.markdown, undefined, undefined, 'blob')) as Blob
+        // docx：在渲染进程里转，浏览器环境会读取 data:image 图片
+        const { convertMarkdownToDocx } = await import('@mohtasham/md-to-docx')
+        const blob = await convertMarkdownToDocx(inlined.markdown, {
+          codeHighlighting: {
+            enabled: true,
+            showLanguageLabel: true,
+            languages: [
+              'typescript',
+              'javascript',
+              'python',
+              'bash',
+              'json',
+              'css',
+              'html',
+              'markdown',
+              'java',
+              'c',
+              'cpp',
+              'rust',
+              'go',
+              'sql',
+              'yaml',
+            ],
+          },
+        })
         const saved = await exportViaDialog({
           fileName: `${data.baseName}.docx`,
           data: new Uint8Array(await blob.arrayBuffer()),

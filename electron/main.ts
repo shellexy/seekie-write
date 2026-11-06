@@ -390,6 +390,7 @@ function registerIpc(): void {
     (): AppInfo => ({
       version: app.getVersion(),
       electron: process.versions.electron,
+      chromium: process.versions.chrome,
       node: process.versions.node,
       homepage: 'https://github.com/shellexy/seekie-write',
     }),
