@@ -1446,6 +1446,7 @@ export default function App() {
       <SourceCodeDialog
         open={sourceOpen}
         markdownText={sourceText}
+        documentTitle={active?.title ?? ''}
         onClose={() => setSourceOpen(false)}
       />
 

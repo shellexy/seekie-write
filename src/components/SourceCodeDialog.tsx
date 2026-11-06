@@ -49,10 +49,12 @@ const sourceTheme = EditorView.theme({
 export function SourceCodeDialog({
   open,
   markdownText,
+  documentTitle,
   onClose,
 }: {
   open: boolean
   markdownText: string
+  documentTitle: string
   onClose: () => void
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -99,9 +101,11 @@ export function SourceCodeDialog({
         className="dialog dialog--source"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Markdown 源码"
+        aria-label={documentTitle ? `${documentTitle} 的 Markdown 源码` : 'Markdown 源码'}
       >
-        <h3 className="dialog__title">Markdown 源码</h3>
+        <h3 className="dialog__title">
+          {documentTitle ? `${documentTitle} 的 Markdown 源码` : 'Markdown 源码'}
+        </h3>
         <div className="source-view" ref={hostRef} />
         <div className="dialog__actions">
           <button

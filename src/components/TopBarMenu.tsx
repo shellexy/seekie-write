@@ -71,6 +71,7 @@ export function TopBarMenu({
       <div className="topbar-menu__sep" />
       {item('查找', 'Ctrl+F', onFind)}
       {item('替换', 'Ctrl+H', onReplace)}
+      <div className="topbar-menu__sep" />
       {item('中文简繁转换', '', onChinese)}
       <div className="topbar-menu__sep" />
       {item('查看源码', '', onSource)}
