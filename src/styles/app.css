@@ -1015,7 +1015,7 @@ body.is-resizing * {
 }
 .zh__pane textarea[readonly] {
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--fg);
 }
 .dialog--zh .dialog__hint {
   margin: 10px 0 6px;
