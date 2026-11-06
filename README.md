@@ -6,6 +6,7 @@
 
 ![浅色](docs/screenshot-light.png)
 ![深色](docs/screenshot-dark.png)
+![智能识别标题](docs/screenshot-smart-headings.png)
 
 ## 现在能做什么
 
