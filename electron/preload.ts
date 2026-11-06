@@ -41,6 +41,11 @@ const api = {
     save: (req: SaveRequest): Promise<SaveResult> => ipcRenderer.invoke(IPC.fileSave, req),
     export: (req: ExportRequest): Promise<string | null> => ipcRenderer.invoke(IPC.fileExport, req),
     mtime: (path: string | null): Promise<number | null> => ipcRenderer.invoke('file:mtime', path),
+    readImageData: (src: string) =>
+      ipcRenderer.invoke(IPC.fileImageData, src) as Promise<{
+        data: Uint8Array
+        contentType: string
+      } | null>,
     reveal: (path: string): Promise<void> => ipcRenderer.invoke(IPC.fileReveal, path),
   },
   print: {

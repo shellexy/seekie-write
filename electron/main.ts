@@ -439,6 +439,27 @@ function registerIpc(): void {
   )
   ipcMain.handle('file:mtime', async (_e, path: string | null) => mtimeOf(path))
 
+  ipcMain.handle(IPC.fileImageData, async (_e, src: string) => {
+    try {
+      if (!src || src.startsWith('data:')) return null
+      let filePath: string
+      if (src.startsWith('seekie-local:')) {
+        filePath = decodeURIComponent(new URL(src).pathname)
+      } else if (src.startsWith('file:')) {
+        filePath = fileURLToPath(src)
+      } else {
+        return null
+      }
+      if (!filePath.startsWith('/')) return null
+      const mime = LOCAL_IMAGE_MIME[extname(filePath).toLowerCase()]
+      if (!mime) return null
+      const data = await readFile(filePath)
+      return { data: new Uint8Array(data), contentType: mime }
+    } catch {
+      return null
+    }
+  })
+
   ipcMain.handle(IPC.assetRegister, async (_e, tabId: string, list: DocAsset[]) => {
     assetStore.putMany(tabId, list)
     return true

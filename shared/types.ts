@@ -151,6 +151,11 @@ export interface ClipboardPayload {
   html?: string
 }
 
+export interface ImageDataPayload {
+  data: Uint8Array
+  contentType: string
+}
+
 export interface AppInfo {
   version: string
   electron: string
@@ -194,6 +199,7 @@ export const IPC = {
   fileReadMarkdown: 'file:read-markdown',
   fileSave: 'file:save',
   fileReveal: 'file:reveal',
+  fileImageData: 'file:image-data',
   // 导出 / 打印
   fileExport: 'file:export',
   printToPdf: 'print:to-pdf',

@@ -50,6 +50,7 @@ const mock = {
     save: async (): Promise<SaveResult> => ({ status: 'canceled' }),
     export: async (_req: ExportRequest) => null,
     mtime: async () => null,
+    readImageData: async () => null,
     reveal: async () => {},
   },
   print: {
@@ -142,6 +143,7 @@ export interface SeekieApi {
     save: (req: SaveRequest) => Promise<SaveResult>
     export: (req: ExportRequest) => Promise<string | null>
     mtime: (path: string | null) => Promise<number | null>
+    readImageData: (src: string) => Promise<{ data: Uint8Array; contentType: string } | null>
     reveal: (path: string) => Promise<void>
   }
   print: {

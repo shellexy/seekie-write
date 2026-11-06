@@ -415,6 +415,20 @@ export default function App() {
               'yaml',
             ],
           },
+          imageHandling: {
+            maxImageBytes: 20 * 1024 * 1024,
+            resolve: async (source: string) => {
+              try {
+                // data: / seekie-asset: 已内联；相对路径按当前文档的 <base> 解析
+                if (source.startsWith('data:')) return undefined
+                const url = new URL(source, document.baseURI).href
+                const image = await api.file.readImageData(url)
+                return image ?? undefined
+              } catch {
+                return undefined
+              }
+            },
+          },
         })
         const saved = await exportViaDialog({
           fileName: `${data.baseName}.docx`,
