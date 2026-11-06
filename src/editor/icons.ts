@@ -49,7 +49,3 @@ export const TABLE_ICON = wrap(
 export const HR_ICON = wrap(
   '<path d="M4 12h4.2"/><path d="M9.9 12h4.2"/><path d="M15.8 12H20"/>',
 )
-
-export const MORE_ICON = wrap(
-  '<circle cx="12" cy="5.6" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.4" r="1.3" fill="currentColor" stroke="none"/>',
-)

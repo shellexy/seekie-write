@@ -44,15 +44,8 @@ import {
   IMAGE_ICON,
   TABLE_ICON,
   HR_ICON,
-  MORE_ICON,
 } from './icons'
 import { insertHr, insertImageFromPicker, insertTable } from './insert'
-
-/** App 挂载后注册：TopBar 的 ⋮ 按钮点击时打开 React 菜单 */
-let moreMenuHandler: (() => void) | null = null
-export function setMoreMenuHandler(handler: (() => void) | null): void {
-  moreMenuHandler = handler
-}
 
 /**
  * Crepe 顶部工具栏（TopBar）定制。
@@ -205,7 +198,6 @@ export const TOOLBAR_LABELS: Record<string, string> = {
   quote: '引用',
   'code-block': '代码块',
   'clear-format': '清除格式（Ctrl+\\）',
-  more: '更多（查找 / 替换 / 源码 / 设置 / 关于）',
 }
 
 /** 与 buildTopBar 里 addItem 的顺序严格一致（不含 heading selector） */
@@ -222,7 +214,6 @@ const BUTTON_LABEL_ORDER = [
   'quote',
   'code-block',
   'clear-format',
-  'more',
 ]
 
 type Builder = Parameters<NonNullable<TopBarFeatureConfig['buildTopBar']>>[0]
@@ -332,13 +323,6 @@ export function buildTopBar(builder: Builder): void {
     icon: CLEAR_FORMAT_ICON,
     active: () => false,
     onRun: clearFormat,
-  })
-
-  // 顶栏最右侧的 ⋮，菜单由 React 渲染
-  builder.addGroup('more', '更多').addItem('more', {
-    icon: MORE_ICON,
-    active: () => false,
-    onRun: () => moreMenuHandler?.(),
   })
 }
 

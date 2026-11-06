@@ -30,6 +30,8 @@ export interface TitleBarActions {
   onCloseTab: (id: string) => void
   onCloseOtherTabs: (id: string) => void
   onCloseRightTabs: (id: string) => void
+  canReopenClosed: boolean
+  onReopenClosed: () => void
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
@@ -546,6 +548,17 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
             }}
           >
             在文件夹中显示
+          </button>
+          <div className="tab-context__sep" />
+          <button
+            className="tab-context__item"
+            disabled={!actions.canReopenClosed}
+            onClick={() => {
+              actions.onReopenClosed()
+              setTabContext(null)
+            }}
+          >
+            重新打开关闭的标签
           </button>
         </div>
       )}

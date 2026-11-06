@@ -13,7 +13,15 @@ import { EditorSession, type EditorSnapshot } from './editor/session'
 import { runEditorCommand } from './editor/commandBus'
 import { copySelection } from './editor/clipboard'
 import { insertClipboardPlainText } from './editor/plainPaste'
-import { installTopBarTooltips, setMoreMenuHandler, stopTopBarTooltips } from './editor/topBarConfig'
+
+interface ClosedTab {
+  savePath: string | null
+  sourcePath: string | null
+  sourceExt: string | null
+  title: string
+  markdown: string
+}
+import { installTopBarTooltips, stopTopBarTooltips } from './editor/topBarConfig'
 import { setAssetAddedHandler, setAssetTab } from './lib/assets'
 import { saveTab } from './lib/files'
 import { applyImageBase } from './lib/imageBase'
@@ -36,8 +44,9 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { TopBarMenu } from './components/TopBarMenu'
 import { SourceCodeDialog } from './components/SourceCodeDialog'
 import { AboutDialog } from './components/AboutDialog'
+import { IconMore } from './components/Icons'
 import { SmartHeadingsDialog } from './components/SmartHeadingsDialog'
-import { Toast, ConvertingOverlay, ConfirmDialog, ImageModeDialog } from './components/Overlays'
+import { Toast, ConvertingOverlay, CloseTabsDialog, ImageModeDialog } from './components/Overlays'
 
 const BLANK_DOC = ''
 
@@ -92,14 +101,9 @@ export default function App() {
     candidates: HeadingCandidate[]
   }>({ open: false, candidates: [] })
   const [draggingSidebarWidth, setDraggingSidebarWidth] = useState<number | null>(null)
-  const [confirmState, setConfirmState] = useState<{
-    open: boolean
-    title: string
-    message: React.ReactNode
-    confirmText?: string
-    danger?: boolean
-    onConfirm: () => void
-  }>({ open: false, title: '', message: '', onConfirm: () => {} })
+  const [closeRequest, setCloseRequest] = useState<{ ids: string[]; count: number } | null>(null)
+  const [closingSaving, setClosingSaving] = useState(false)
+  const [closedTabs, setClosedTabs] = useState<ClosedTab[]>([])
 
   const tabById = (id: string | null): TabMeta | undefined =>
     id ? useApp.getState().tabs.find((t) => t.id === id) : undefined
@@ -149,19 +153,20 @@ export default function App() {
       kind: SaveKind,
       forceMode?: ImageSaveMode,
       overwrite = false,
-    ) => {
+    ): Promise<boolean> => {
       const store = tabStoreRef.current
       const tab = tabById(id)
-      if (!store || !tab) return
+      if (!store || !tab) return false
       flushTimer(id)
 
       if (inFlightSaves.current.has(id)) {
         // 保存进行中：记下更高优先级的请求，结束后再补一次
         const queued = pendingSaves.current.get(id)
         if (!queued || SAVE_RANK[kind] > SAVE_RANK[queued]) pendingSaves.current.set(id, kind)
-        return
+        return false
       }
       inFlightSaves.current.add(id)
+      let ok = false
 
       try {
         const markdown = store.markdownOf(id)
@@ -178,7 +183,7 @@ export default function App() {
           clearContentCheck(id)
           pendingSaves.current.delete(id)
           patchTab(id, { dirty: false, saveStatus: 'idle', saveMessage: undefined })
-          return
+          return true
         }
 
         // 没有落盘路径（新建 / 转换后未另存）时，自动保存只写草稿区，
@@ -192,7 +197,7 @@ export default function App() {
             saveStatus: 'idle',
             saveMessage: undefined,
           })
-          return
+          return true
         }
 
         patchTab(id, { saveStatus: 'saving' })
@@ -210,6 +215,7 @@ export default function App() {
         })
 
         if (result.status === 'saved' && result.path) {
+          ok = true
           savedMarkdown.current.set(id, markdown)
           clearContentCheck(id)
           patchTab(id, {
@@ -238,6 +244,7 @@ export default function App() {
           patchTab(id, { saveStatus: 'error', saveMessage: result.message })
           notify(result.message ?? '保存失败', 'error')
         }
+        return ok
       } finally {
         inFlightSaves.current.delete(id)
         const queued = pendingSaves.current.get(id)
@@ -310,12 +317,6 @@ export default function App() {
   )
 
   /* ----------------------------- 导出 / 打印 ----------------------------- */
-
-  // 顶栏 ⋮ 菜单：Crepe 的按钮点击后由 React 打开菜单
-  useEffect(() => {
-    setMoreMenuHandler(() => setMoreOpen(true))
-    return () => setMoreMenuHandler(null)
-  }, [])
 
   const activeExport = useCallback(() => {
     const state = useApp.getState()
@@ -660,109 +661,145 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [activate])
 
-  const closeTab = useCallback(
-    (id: string) => {
-      const tab = tabById(id)
-      if (!tab) return
-      const finish = () => {
-        void saveDraftIfNeeded(id).then(() => {
-          tabStoreRef.current?.drop(id)
-          savedMarkdown.current.delete(id)
-          clearContentCheck(id)
-          useApp.getState().removeTab(id)
-          void api.asset.drop(id)
-          // 关闭标签不应在会话里留下草稿，否则下次启动会把它“复活”
-          void api.draft.drop(id)
-          const rest = useApp.getState().tabs
-          if (rest.length === 0) {
-            newTab()
-          } else if (useApp.getState().activeId === id) {
-            activate(rest[rest.length - 1].id)
-          }
-        })
-      }
-      if (tab.dirty) {
-        setConfirmState({
-          open: true,
-          title: '关闭这个标签？',
-          message: (
-            <>
-              <b>{tab.title}</b> 有未保存的改动。
-              <br />
-              关闭后会丢弃这些改动。
-            </>
-          ),
-          confirmText: '关闭并丢弃',
-          danger: true,
-          onConfirm: () => {
-            setConfirmState((c) => ({ ...c, open: false }))
-            flushTimer(id)
-            tabStoreRef.current?.drop(id)
-            savedMarkdown.current.delete(id)
-          clearContentCheck(id)
-            useApp.getState().removeTab(id)
-            void api.asset.drop(id)
-            void api.draft.drop(id)
-            const rest = useApp.getState().tabs
-            if (rest.length === 0) newTab()
-            else activate(rest[rest.length - 1].id)
-          },
-        })
-        return
-      }
-      finish()
-    },
-    [activate, clearContentCheck, flushTimer, newTab, saveDraftIfNeeded],
-  )
+  const rememberClosed = useCallback((tab: TabMeta) => {
+    const store = tabStoreRef.current
+    const markdown = tab.savePath ? '' : (store?.markdownOf(tab.id) ?? '')
+    if (!tab.savePath && !markdown.trim()) return
+    setClosedTabs((prev) =>
+      [
+        {
+          savePath: tab.savePath,
+          sourcePath: tab.sourcePath,
+          sourceExt: tab.sourceExt,
+          title: tab.title,
+          markdown,
+        },
+        ...prev,
+      ].slice(0, 20),
+    )
+  }, [])
 
-  /** 批量关闭（关闭其他 / 关闭右侧共用）：有未保存改动时统一确认一次 */
-  const closeManyTabs = useCallback(
+  const needsClosePrompt = useCallback((tab: TabMeta) => {
+    if (tab.dirty) return true
+    if (tab.savePath) return false
+    // 草稿标签即使自动保存过草稿，也没有真正落盘，关闭前仍然询问是否保存
+    return Boolean(tabStoreRef.current?.markdownOf(tab.id).trim())
+  }, [])
+
+  const closeNow = useCallback(
     (ids: string[]) => {
       const targets = useApp.getState().tabs.filter((tab) => ids.includes(tab.id))
       if (!targets.length) return
-      const dirtyCount = targets.filter((tab) => tab.dirty).length
-
-      const closeNow = () => {
-        for (const tab of targets) {
-          flushTimer(tab.id)
-          pendingSaves.current.delete(tab.id)
-          tabStoreRef.current?.drop(tab.id)
-          savedMarkdown.current.delete(tab.id)
-          clearContentCheck(tab.id)
-          useApp.getState().removeTab(tab.id)
-          void api.asset.drop(tab.id)
-          void api.draft.drop(tab.id)
-        }
-        const rest = useApp.getState().tabs
-        if (rest.length === 0) {
-          newTab()
-        } else if (!rest.some((tab) => tab.id === useApp.getState().activeId)) {
-          activate(rest[rest.length - 1].id)
-        }
+      for (const tab of targets) {
+        rememberClosed(tab)
+        flushTimer(tab.id)
+        pendingSaves.current.delete(tab.id)
+        tabStoreRef.current?.drop(tab.id)
+        savedMarkdown.current.delete(tab.id)
+        clearContentCheck(tab.id)
+        useApp.getState().removeTab(tab.id)
+        void api.asset.drop(tab.id)
+        void api.draft.drop(tab.id)
       }
+      const rest = useApp.getState().tabs
+      if (rest.length === 0) {
+        newTab()
+      } else if (!rest.some((tab) => tab.id === useApp.getState().activeId)) {
+        activate(rest[rest.length - 1].id)
+      }
+    },
+    [activate, clearContentCheck, flushTimer, newTab, rememberClosed],
+  )
 
-      if (dirtyCount > 0) {
-        setConfirmState({
-          open: true,
-          title: '关闭这些标签？',
-          message: (
-            <>
-              其中 <b>{dirtyCount}</b> 个标签有未保存的改动，关闭后会丢弃。
-            </>
-          ),
-          confirmText: '关闭并丢弃',
-          danger: true,
-          onConfirm: () => {
-            setConfirmState((c) => ({ ...c, open: false }))
-            closeNow()
-          },
-        })
+  const requestClose = useCallback(
+    (ids: string[]) => {
+      const targets = useApp.getState().tabs.filter((tab) => ids.includes(tab.id))
+      if (!targets.length) return
+      const promptCount = targets.filter((tab) => needsClosePrompt(tab)).length
+      if (promptCount > 0) {
+        setCloseRequest({ ids: targets.map((tab) => tab.id), count: promptCount })
         return
       }
-      closeNow()
+      closeNow(targets.map((tab) => tab.id))
     },
-    [activate, clearContentCheck, flushTimer, newTab],
+    [closeNow, needsClosePrompt],
   )
+
+  const closeTab = useCallback((id: string) => requestClose([id]), [requestClose])
+  const closeManyTabs = useCallback((ids: string[]) => requestClose(ids), [requestClose])
+
+  const saveAndClose = useCallback(async () => {
+    const request = closeRequest
+    if (!request) return
+    setClosingSaving(true)
+    try {
+      for (const id of request.ids) {
+        const tab = useApp.getState().tabs.find((item) => item.id === id)
+        if (!tab || !needsClosePrompt(tab)) continue
+        const saved = tab.savePath ? await doSave(id, 'manual') : await doSave(id, 'saveAs')
+        if (!saved) {
+          setCloseRequest(null)
+          return
+        }
+      }
+      setCloseRequest(null)
+      closeNow(request.ids)
+    } catch (err) {
+      notify(`保存失败：${(err as Error).message}`, 'error')
+      setCloseRequest(null)
+    } finally {
+      setClosingSaving(false)
+    }
+  }, [closeNow, closeRequest, doSave, needsClosePrompt, notify])
+
+  const discardAndClose = useCallback(() => {
+    if (!closeRequest) return
+    const ids = closeRequest.ids
+    setCloseRequest(null)
+    closeNow(ids)
+  }, [closeNow, closeRequest])
+
+  const reopenClosedTab = useCallback(async () => {
+    if (!closedTabs.length) return
+    const [entry, ...rest] = closedTabs
+    setClosedTabs(rest)
+
+    if (entry.savePath) {
+      const mtime = await api.file.mtime(entry.savePath)
+      if (mtime != null) {
+        await openPathRef.current?.(entry.savePath)
+        return
+      }
+    }
+
+    if (entry.markdown.trim()) {
+      const store = tabStoreRef.current
+      if (!store) return
+      const id = makeTabId()
+      const state = store.createStateFromMarkdown(entry.markdown)
+      store.register(id, state)
+      savedMarkdown.current.set(id, store.markdownOf(id))
+      useApp.getState().upsertTab({
+        id,
+        title: entry.title,
+        dirty: false,
+        sourcePath: entry.sourcePath,
+        sourceExt: entry.sourceExt,
+        savePath: null,
+        converted: Boolean(entry.sourceExt && entry.sourceExt !== '.md'),
+        draft: true,
+        saveStatus: 'idle',
+        conflict: false,
+        assets: [],
+        mtime: null,
+        scrollTop: 0,
+      })
+      activate(id)
+      return
+    }
+
+    notify(entry.savePath ? '原文件已不存在，无法重新打开' : '没有可恢复的内容', 'error')
+  }, [activate, closedTabs, notify])
 
   const closeOtherTabs = useCallback(
     (id: string) => {
@@ -1243,6 +1280,8 @@ export default function App() {
           onCloseTab: closeTab,
           onCloseOtherTabs: closeOtherTabs,
           onCloseRightTabs: closeRightTabs,
+          canReopenClosed: closedTabs.length > 0,
+          onReopenClosed: () => void reopenClosedTab(),
         }}
       />
 
@@ -1281,6 +1320,15 @@ export default function App() {
 
         <div className="main" style={{ zoom }}>
           <EditorPane onReady={bootEditor} />
+          <button
+            className="editor-more"
+            onClick={() => setMoreOpen((open) => !open)}
+            title="更多（查找 / 替换 / 源码 / 设置 / 关于）"
+            aria-label="更多"
+            aria-expanded={moreOpen}
+          >
+            <IconMore />
+          </button>
           <FindBar
             open={findState.open}
             mode={findState.mode}
@@ -1301,14 +1349,13 @@ export default function App() {
         }}
       />
 
-      <ConfirmDialog
-        open={confirmState.open}
-        title={confirmState.title}
-        message={confirmState.message}
-        confirmText={confirmState.confirmText}
-        danger={confirmState.danger}
-        onCancel={() => setConfirmState((c) => ({ ...c, open: false }))}
-        onConfirm={confirmState.onConfirm}
+      <CloseTabsDialog
+        open={closeRequest !== null}
+        count={closeRequest?.count ?? 0}
+        saving={closingSaving}
+        onSave={() => void saveAndClose()}
+        onDiscard={discardAndClose}
+        onCancel={() => setCloseRequest(null)}
       />
 
       <TopBarMenu

@@ -143,3 +143,53 @@ export function ConfirmDialog({
     </div>
   )
 }
+
+export function CloseTabsDialog({
+  open,
+  count,
+  saving,
+  onSave,
+  onDiscard,
+  onCancel,
+}: {
+  open: boolean
+  count: number
+  saving: boolean
+  onSave: () => void
+  onDiscard: () => void
+  onCancel: () => void
+}) {
+  useEffect(() => {
+    if (!open || saving) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, saving, onCancel])
+
+  if (!open) return null
+  return (
+    <div className="overlay" onClick={() => !saving && onCancel()}>
+      <div className="dialog dialog--close-tabs" onClick={(e) => e.stopPropagation()}>
+        <h3>关闭标签？</h3>
+        <p className="dialog__hint">
+          {count > 1
+            ? `其中 ${count} 个标签有未保存的改动，关闭前要保存吗？`
+            : '这个标签有未保存的改动，关闭前要保存吗？'}
+        </p>
+        <div className="dialog__actions">
+          <button className="btn" onClick={onCancel} disabled={saving}>
+            取消
+          </button>
+          <button className="btn btn--danger" onClick={onDiscard} disabled={saving}>
+            不保存
+          </button>
+          <button className="btn btn--primary" onClick={onSave} disabled={saving}>
+            {saving ? '保存中…' : '保存'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

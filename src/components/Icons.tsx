@@ -14,6 +14,14 @@ const base = (props: P) => ({
   ...props,
 })
 
+export const IconMore = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="5.5" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="18.5" r="1.4" fill="currentColor" stroke="none" />
+  </svg>
+)
+
 export const IconNew = (p: P) => (
   <svg {...base(p)}>
     <path d="M12 5v14M5 12h14" />

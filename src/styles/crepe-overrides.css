@@ -28,7 +28,7 @@
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid color-mix(in srgb, var(--fg) 30%, transparent);
-  padding: 0 10px;
+  padding: 0 44px 0 10px;
   min-height: var(--topbar-h);
   gap: 2px;
 }
@@ -39,12 +39,6 @@
   min-height: var(--topbar-h);
   align-items: center;
   flex-wrap: wrap;
-}
-
-/* ⋮ 选项菜单固定在顶栏最右侧（TopBar 的按钮是 .top-bar-inner 的直接子元素） */
-.milkdown .milkdown-top-bar .top-bar-inner > .top-bar-item:last-child,
-.milkdown .milkdown-top-bar .top-bar-inner > div:last-child {
-  margin-left: auto;
 }
 
 .milkdown .milkdown-top-bar .top-bar-item {

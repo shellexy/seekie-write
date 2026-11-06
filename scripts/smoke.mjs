@@ -173,8 +173,7 @@ try {
   }
   const clickMore = async () => {
     const rect = await cdp.ev(`(() => {
-      const button = document.querySelector('.top-bar-item[data-key="more"]') ||
-        document.querySelector('.top-bar-item:last-child')
+      const button = document.querySelector('.editor-more')
       if (!button) return null
       const r = button.getBoundingClientRect()
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 }

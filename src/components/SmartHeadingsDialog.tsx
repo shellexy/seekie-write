@@ -66,7 +66,9 @@ export function SmartHeadingsDialog({
   return (
     <div className="overlay" onClick={onClose}>
       <div
-        className="dialog dialog--smart-headings"
+        className={`dialog dialog--smart-headings${
+          rows.length > 8 ? ' dialog--smart-headings--tall' : ''
+        }`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="智能识别标题"
