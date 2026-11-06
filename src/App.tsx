@@ -13,6 +13,7 @@ import { EditorSession, type EditorSnapshot } from './editor/session'
 import { runEditorCommand } from './editor/commandBus'
 import { copySelection } from './editor/clipboard'
 import { insertClipboardPlainText } from './editor/plainPaste'
+import { createDocxImageResolver, prepareDocxMarkdown } from './lib/docxImages'
 
 interface ClosedTab {
   savePath: string | null
@@ -393,7 +394,9 @@ export default function App() {
 
         // docx：在渲染进程里转，浏览器环境会读取 data:image 图片
         const { convertMarkdownToDocx } = await import('@mohtasham/md-to-docx')
-        const blob = await convertMarkdownToDocx(inlined.markdown, {
+        const resolveDocxImage = createDocxImageResolver()
+        const docxMarkdown = await prepareDocxMarkdown(inlined.markdown, resolveDocxImage)
+        const blob = await convertMarkdownToDocx(docxMarkdown, {
           codeHighlighting: {
             enabled: true,
             showLanguageLabel: true,
@@ -417,17 +420,8 @@ export default function App() {
           },
           imageHandling: {
             maxImageBytes: 20 * 1024 * 1024,
-            resolve: async (source: string) => {
-              try {
-                // data: / seekie-asset: 已内联；相对路径按当前文档的 <base> 解析
-                if (source.startsWith('data:')) return undefined
-                const url = new URL(source, document.baseURI).href
-                const image = await api.file.readImageData(url)
-                return image ?? undefined
-              } catch {
-                return undefined
-              }
-            },
+            resolve: async (source: string) =>
+              source.startsWith('data:') ? undefined : ((await resolveDocxImage(source)) ?? undefined),
           },
         })
         const saved = await exportViaDialog({

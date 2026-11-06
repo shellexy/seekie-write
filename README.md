@@ -27,7 +27,7 @@
 * **标签条**：用满标题栏剩余宽度；放不下时可用滚轮横向滚动，或 `Ctrl+Tab` / `Ctrl+Shift+Tab` 循环切换，切到的标签会自动滚到可见区域；右侧「全部标签」下拉可直接切换或关闭任意标签
 * **启动恢复**：默认只恢复草稿；设置里勾选“启动时恢复上次打开的文件”后，才会连同上次有落盘路径的标签一起重新打开
 * **最近文件**：打开按钮旁的箭头列出最近 12 个文件，点一下直接重开；转换文档另存为 Markdown 后，最近文件里的源文件条目会原地替换成保存的 `.md`
-* **导出 / 打印**：另存为下拉箭头里包含 另存为、导出 Markdown（单文件）、导出 HTML（单文件）、导出 docx、导出 PDF、打印、打印预览；单文件导出会把图片以内联 base64 写进同一个文件，HTML 里的 LaTeX 公式转成 MathML；docx 导出使用 `@mohtasham/md-to-docx`，代码块启用 lowlight 语法高亮
+* **导出 / 打印**：另存为下拉箭头里包含 另存为、导出 Markdown（单文件）、导出 HTML（单文件）、导出 docx、导出 PDF、打印、打印预览；单文件导出会把图片以内联 base64 写进同一个文件，HTML 里的 LaTeX 公式转成 MathML；docx 导出使用 `@mohtasham/md-to-docx`，代码块启用 lowlight 语法高亮；单行图片按 A4 内容区宽度自适应，高度超出一页时等比缩小；本地/相对/远程图片都会尝试抓取嵌入
 * **程序图标**：`build/icon.png` 同时用于窗口图标、Linux 桌面入口和“关于”对话框
 * **标签右键菜单**：关闭标签 / 关闭其他标签 / 关闭右侧标签、复制文件路径、在文件夹中显示、重新打开关闭的标签
 * **关闭确认**：有未保存改动（包括尚未落盘的草稿标签）时提示 保存 / 不保存 / 取消；转换文档未手动编辑时直接关闭、不提示；编辑过即使草稿已自动保存也会提示；不保存关闭的标签仍可通过右键菜单恢复
@@ -139,7 +139,7 @@ samples/               测试用的 .docx / .md
 * **内嵌 base64 不可逆**：开启“打开时图片内嵌为 base64”后，转换出的 Markdown 已经是 data URI，保存时会保持内嵌，不会再自动改成 `.assets/` 相对路径；图片多的文档体积会明显增加。
 * **启动恢复只在正常退出时记录**：`session.json` 在关闭窗口时写入；进程被强杀时只会恢复草稿区。
 * **图片压缩跳过动图 GIF / webp / SVG**：动图避免被压成单帧，SVG 是矢量，webp 已经是目标格式；静态 GIF 仍会压成 webp。
-* **docx 导出包**：使用 `@mohtasham/md-to-docx`，在渲染进程生成 docx；代码块开启 `codeHighlighting`，图片以内嵌 data URI 写入。
+* **docx 导出包**：使用 `@mohtasham/md-to-docx`，在渲染进程生成 docx；代码块开启 `codeHighlighting`；单行图片使用页面宽度并限制一页高度；本地、相对、远程图片通过 IPC/网络抓取后以内嵌 data URI 写入。
 * **Crepe TopBar 的自定义按钮不能加 class**：Crepe 只给 `.top-bar-item`，所以 tooltip 是靠挂载后补 `title` 实现的（`installTopBarTooltips`）。增删按钮或升级 Crepe 小版本后，要同步 `topBarConfig.ts` 里的 `BUTTON_LABEL_ORDER`。
 * **`buildHeadingSelector` 未使用**：它没有从包入口导出，这里自己拼了 selector 结构，等价且不依赖半公开 API。
 * **多标签共享一份 plugins**：个别插件的实例级瞬时状态（tooltip 是否展开等）在切标签时会被重置，文档内容、撤销栈、选区不受影响。
@@ -189,7 +189,7 @@ samples/               测试用的 .docx / .md
 | 标签右键菜单                                    | ✅ 关闭其他 / 关闭右侧 / 复制文件路径 / 在文件夹中显示 / 重新打开关闭的标签                                                |
 | 关闭未保存标签                                  | ✅ 保存 / 不保存 / 取消；转换文档未编辑不提示、编辑后提示；草稿不保存关闭后可在右键菜单恢复；危险按钮 hover 保持红底白字 |
 | 导出 Markdown / HTML                        | ✅ 单文件，图片写成 `data:image/png;base64,…`；HTML 公式输出 `<math>` MathML                                |
-| 导出 docx                                   | ✅ `PK` 开头的有效 docx；代码块 `w:color` 高亮；内嵌图片正常                                                         |
+| 导出 docx                                   | ✅ `PK` 开头的有效 docx；代码块 `w:color` 高亮；单行图片按页宽/页高自适应；本地/远程图片内嵌 |
 | 导出 PDF                                    | ✅ `%PDF-`，`printBackground: true`；打印样式隐藏标题栏 / 大纲 / 顶栏，代码块 `pre-wrap`                          |
 | 打印预览                                      | ✅ 独立预览窗口，关闭主窗口时一并退出                                                                           |
 | 边界：base64 压缩                              | ✅ 示例 docx 的 PNG 保存为 webp；动图 GIF / webp / SVG 跳过，静态 GIF 压缩                                     |

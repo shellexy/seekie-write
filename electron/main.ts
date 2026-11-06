@@ -442,6 +442,26 @@ function registerIpc(): void {
   ipcMain.handle(IPC.fileImageData, async (_e, src: string) => {
     try {
       if (!src || src.startsWith('data:')) return null
+
+      if (/^https?:/i.test(src)) {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 10_000)
+        try {
+          const response = await fetch(src, { signal: controller.signal })
+          if (!response.ok) return null
+          const contentType = (response.headers.get('content-type') ?? '')
+            .split(';')[0]
+            .trim()
+            .toLowerCase()
+          if (!contentType.startsWith('image/')) return null
+          const data = new Uint8Array(await response.arrayBuffer())
+          if (data.byteLength > 20 * 1024 * 1024) return null
+          return { data, contentType }
+        } finally {
+          clearTimeout(timer)
+        }
+      }
+
       let filePath: string
       if (src.startsWith('seekie-local:')) {
         filePath = decodeURIComponent(new URL(src).pathname)
