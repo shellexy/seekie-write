@@ -39,11 +39,12 @@ import { TitleBar } from './components/TitleBar'
 import { Outline } from './components/Outline'
 import { EditorPane } from './components/EditorPane'
 import { SidebarFooter } from './components/SidebarFooter'
-import { FindBar, type FindMode } from './components/FindBar'
+import { FindBar, type FindBarHandle, type FindMode } from './components/FindBar'
 import { SettingsDialog } from './components/SettingsDialog'
 import { TopBarMenu } from './components/TopBarMenu'
 import { SourceCodeDialog } from './components/SourceCodeDialog'
 import { AboutDialog } from './components/AboutDialog'
+import { ChineseConvertDialog } from './components/ChineseConvertDialog'
 import { IconMore } from './components/Icons'
 import { SmartHeadingsDialog } from './components/SmartHeadingsDialog'
 import { Toast, ConvertingOverlay, CloseTabsDialog, ImageModeDialog } from './components/Overlays'
@@ -91,9 +92,11 @@ export default function App() {
     open: false,
     mode: 'find',
   })
+  const findBarRef = useRef<FindBarHandle>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [sourceOpen, setSourceOpen] = useState(false)
+  const [chineseOpen, setChineseOpen] = useState(false)
   const [sourceText, setSourceText] = useState('')
   const [aboutOpen, setAboutOpen] = useState(false)
   const [smartHeadings, setSmartHeadings] = useState<{
@@ -1028,6 +1031,22 @@ export default function App() {
     })
   }, [])
 
+  // F3 / Shift+F3：搜索下一个 / 上一个；面板未打开时先打开查找
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F3') return
+      e.preventDefault()
+      if (!findState.open) {
+        setFindState({ open: true, mode: 'find' })
+        return
+      }
+      findBarRef.current?.navigate(e.shiftKey ? -1 : 1)
+      findBarRef.current?.focus()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [findState.open])
+
   /* ----------------------------- 菜单命令 ----------------------------- */
 
   useEffect(() => {
@@ -1332,6 +1351,7 @@ export default function App() {
             <IconMore />
           </button>
           <FindBar
+            ref={findBarRef}
             open={findState.open}
             mode={findState.mode}
             getCtx={() => ctxRef.current}
@@ -1374,8 +1394,16 @@ export default function App() {
         onFind={() => setFindState({ open: true, mode: 'find' })}
         onReplace={() => setFindState({ open: true, mode: 'replace' })}
         onSource={openSource}
+        onChinese={() => setChineseOpen(true)}
         onSettings={() => setSettingsOpen(true)}
         onAbout={() => setAboutOpen(true)}
+      />
+
+      <ChineseConvertDialog
+        open={chineseOpen}
+        getCtx={() => ctxRef.current}
+        onClose={() => setChineseOpen(false)}
+        notify={notify}
       />
 
       <SourceCodeDialog

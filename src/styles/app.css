@@ -920,6 +920,102 @@ body.is-resizing * {
 .dialog--settings {
   width: min(560px, 92vw);
 }
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dialog__head h3 {
+  margin: 0;
+}
+.dialog--zh {
+  width: min(1000px, 96vw);
+  height: min(760px, 90vh);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.zh__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 32px;
+  margin: 14px 0 12px;
+}
+.zh__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+.zh__radios {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.zh__radios label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--fg);
+  cursor: pointer;
+}
+.zh__radios input:disabled + * {
+  cursor: default;
+}
+.zh__previews {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.zh__pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.zh__pane h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+.zh__pane textarea {
+  flex: 1 1 auto;
+  min-height: 0;
+  resize: none;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.75;
+  outline: none;
+}
+.zh__pane textarea:focus {
+  border-color: var(--accent);
+}
+.zh__pane textarea[readonly] {
+  background: var(--bg-soft);
+  color: var(--fg-muted);
+}
+.dialog--zh .dialog__hint {
+  margin: 10px 0 6px;
+}
+@media (max-width: 760px) {
+  .dialog--zh {
+    height: 92vh;
+    max-height: 92vh;
+  }
+  .zh__previews {
+    grid-template-columns: 1fr;
+  }
+}
 .dialog--source {
   display: flex;
   flex-direction: column;

@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 import type { Ctx } from '@milkdown/kit/ctx'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { TextSelection } from '@milkdown/kit/prose/state'
@@ -8,6 +15,11 @@ import { clearSearchDecorations, setSearchDecorations } from '../editor/searchPl
 import { IconClose } from './Icons'
 
 export type FindMode = 'find' | 'replace'
+
+export interface FindBarHandle {
+  focus: () => void
+  navigate: (delta: number) => void
+}
 
 interface FindBarProps {
   open: boolean
@@ -20,7 +32,10 @@ interface FindBarProps {
  * 查找 / 替换浮层。
  * 高频路径都在当前 ProseMirror doc 上重新算一遍匹配，避免文档被编辑后位置过期。
  */
-export function FindBar({ open, mode, getCtx, onClose }: FindBarProps) {
+export const FindBar = forwardRef<FindBarHandle, FindBarProps>(function FindBar(
+  { open, mode, getCtx, onClose },
+  ref,
+) {
   const [query, setQuery] = useState('')
   const [replacement, setReplacement] = useState('')
   const [caseSensitive, setCaseSensitive] = useState(false)
@@ -48,7 +63,20 @@ export function FindBar({ open, mode, getCtx, onClose }: FindBarProps) {
     v.dispatch(tr)
   }
 
-  // 打开时：用当前选中文字预填查找内容，并聚焦
+  const focusInput = (): void => {
+    const input = mode === 'replace' ? replaceRef.current : findRef.current
+    if (!input) return
+    input.focus({ preventScroll: true })
+    input.select()
+  }
+
+  useImperativeHandle(ref, () => ({
+    focus: focusInput,
+    navigate: (delta: number) => go(delta),
+  }))
+
+  // 打开时：用当前选中文字预填查找内容，并聚焦。
+  // 原生菜单关闭后窗口可能晚一点把焦点还给编辑器，所以补两次异步聚焦。
   useEffect(() => {
     if (!open) {
       const v = view()
@@ -65,14 +93,22 @@ export function FindBar({ open, mode, getCtx, onClose }: FindBarProps) {
       )
       if (selected && selected.length <= 120) setQuery(selected)
     }
-    const timer = window.setTimeout(() => {
-      const input = mode === 'replace' ? replaceRef.current : findRef.current
-      input?.focus()
-      input?.select()
-    }, 30)
-    return () => window.clearTimeout(timer)
+    const focus = () => {
+      if (!document.querySelector('.findbar')?.contains(document.activeElement)) focusInput()
+    }
+    const timer = window.setTimeout(focus, 30)
+    const timer2 = window.setTimeout(focus, 150)
+    const raf = window.requestAnimationFrame(focus)
+    // 原生菜单关闭后窗口才重新拿回焦点，这时补一次
+    window.addEventListener('focus', focus)
+    return () => {
+      window.clearTimeout(timer)
+      window.clearTimeout(timer2)
+      window.cancelAnimationFrame(raf)
+      window.removeEventListener('focus', focus)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, mode])
 
   // 查询词 / 大小写变化：重算并选中第一个
   useEffect(() => {
@@ -176,6 +212,7 @@ export function FindBar({ open, mode, getCtx, onClose }: FindBarProps) {
           value={query}
           placeholder="查找"
           spellCheck={false}
+          autoFocus={mode === 'find'}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onFindKeyDown}
         />
@@ -190,10 +227,10 @@ export function FindBar({ open, mode, getCtx, onClose }: FindBarProps) {
         >
           Aa
         </button>
-        <button type="button" className="findbar__btn" onClick={() => go(-1)} title="上一个（Shift+Enter）">
+        <button type="button" className="findbar__btn" onClick={() => go(-1)} title="上一个（Shift+Enter / Shift+F3）">
           ↑
         </button>
-        <button type="button" className="findbar__btn" onClick={() => go(1)} title="下一个（Enter）">
+        <button type="button" className="findbar__btn" onClick={() => go(1)} title="下一个（Enter / F3）">
           ↓
         </button>
         <button type="button" className="findbar__btn" onClick={close} title="关闭（Esc）">
@@ -209,6 +246,7 @@ export function FindBar({ open, mode, getCtx, onClose }: FindBarProps) {
             value={replacement}
             placeholder="替换为"
             spellCheck={false}
+            autoFocus={mode === 'replace'}
             onChange={(e) => setReplacement(e.target.value)}
             onKeyDown={onReplaceKeyDown}
           />
@@ -222,4 +260,4 @@ export function FindBar({ open, mode, getCtx, onClose }: FindBarProps) {
       )}
     </div>
   )
-}
+})

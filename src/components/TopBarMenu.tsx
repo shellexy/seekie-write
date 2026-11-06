@@ -8,6 +8,7 @@ export interface TopBarMenuProps {
   onFind: () => void
   onReplace: () => void
   onSource: () => void
+  onChinese: () => void
   onSettings: () => void
   onAbout: () => void
 }
@@ -21,6 +22,7 @@ export function TopBarMenu({
   onFind,
   onReplace,
   onSource,
+  onChinese,
   onSettings,
   onAbout,
 }: TopBarMenuProps) {
@@ -69,6 +71,7 @@ export function TopBarMenu({
       <div className="topbar-menu__sep" />
       {item('查找', 'Ctrl+F', onFind)}
       {item('替换', 'Ctrl+H', onReplace)}
+      {item('中文简繁转换', '', onChinese)}
       <div className="topbar-menu__sep" />
       {item('查看源码', '', onSource)}
       {item('设置', 'Ctrl+,', onSettings)}
