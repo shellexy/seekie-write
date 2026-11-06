@@ -9,6 +9,8 @@ export interface SavePayload {
   imageMode: ImageSaveMode
   assets: DocAsset[]
   suggestedName?: string
+  sourcePath?: string | null
+  converted?: boolean
   kind: 'auto' | 'manual' | 'saveAs'
   mtime?: number | null
   overwrite?: boolean
@@ -167,6 +169,8 @@ export async function saveTab(payload: SavePayload): Promise<SaveResult> {
     assets,
     kind: payload.kind,
     suggestedName: payload.suggestedName,
+    sourcePath: payload.sourcePath,
+    converted: payload.converted,
     expectedMtime: payload.mtime ?? null,
     overwrite: payload.overwrite,
   })

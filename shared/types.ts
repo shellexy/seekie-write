@@ -57,6 +57,10 @@ export interface SaveRequest {
   kind: SaveKind
   /** 另存为对话框的默认文件名 */
   suggestedName?: string
+  /** 源文件路径（由 Word/HTML/txt 等转换而来时用于默认保存目录） */
+  sourcePath?: string | null
+  /** 是否由非 Markdown 文档转换而来 */
+  converted?: boolean
   /** 保存前磁盘文件的 mtime 基线，用于检测外部修改 */
   expectedMtime?: number | null
   /** 用户明确选择「保留我的版本」时忽略冲突 */

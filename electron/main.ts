@@ -195,8 +195,23 @@ function createWindow(): void {
   // 拖文件进窗口：把路径交给渲染层打开
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault())
 
-  // 正文区右键菜单（只在可编辑区域弹出）
+  // 正文区右键菜单（图片单独处理，其余只在可编辑区域弹出）
   mainWindow.webContents.on('context-menu', (_event, params) => {
+    if (params.mediaType === 'image') {
+      const template: MenuItemConstructorOptions[] = [
+        {
+          label: '复制图片',
+          click: () => mainWindow?.webContents.copyImageAt(params.x, params.y),
+        },
+        {
+          label: '复制图片地址',
+          enabled: Boolean(params.srcURL) && !params.srcURL.startsWith('data:'),
+          click: () => void clipboard.writeText(params.srcURL),
+        },
+      ]
+      Menu.buildFromTemplate(template).popup({ window: mainWindow ?? undefined })
+      return
+    }
     if (!params.isEditable) return
     const send = (command: string) => () =>
       mainWindow?.webContents.send(IPC.menuCommand, { command })

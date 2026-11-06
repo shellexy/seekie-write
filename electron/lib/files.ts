@@ -207,9 +207,12 @@ export async function saveDocument(
 
   if (!target) {
     // 还没有落盘位置：另存为
-    // 默认目录优先级：上次保存对话框 → 当前文件所在目录 → 上次打开对话框 → cwd
+    // 默认目录优先级：转换文档源目录 → 上次保存对话框 → 当前文件所在目录 → 上次打开对话框 → cwd
     const settings = getSettings()
+    // 从 Word / HTML / txt 等转换来的文档，另存为默认使用源文件所在目录
+    const sourceDir = req.converted && req.sourcePath ? dirname(req.sourcePath) : ''
     const baseDir =
+      sourceDir ||
       settings.lastSaveDir ||
       (req.savePath ? dirname(req.savePath) : '') ||
       settings.lastOpenDir

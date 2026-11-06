@@ -209,6 +209,8 @@ export default function App() {
           assets: tab.assets,
           suggestedName:
             tab.converted && tab.sourcePath ? `${fileName(tab.sourcePath)}.md` : `${tab.title}.md`,
+          sourcePath: tab.sourcePath,
+          converted: tab.converted,
           kind,
           mtime: tab.mtime,
           overwrite,
