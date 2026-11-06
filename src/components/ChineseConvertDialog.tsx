@@ -212,9 +212,10 @@ export function ChineseConvertDialog({
               <textarea ref={originalRef} readOnly value={original} />
             </section>
             <section className="zh__pane">
-              <h4>转换后预览（可编辑）</h4>
+              <h4>转换后预览（{scope === 'selection' ? '可编辑' : '全文只读'}）</h4>
               <textarea
                 ref={editedRef}
+                readOnly={scope === 'full'}
                 value={edited}
                 onChange={(e) => setEdited(e.target.value)}
               />
@@ -223,7 +224,10 @@ export function ChineseConvertDialog({
         </div>
 
         <p className="dialog__hint">
-          提示：代码块、行内代码及链接 URL 将自动跳过；确认后按规则替换正文。
+          提示：代码块、行内代码及链接 URL 将自动跳过。
+          {scope === 'full'
+            ? ' 全文转换保留原文档格式，右栏仅供预览；需要微调请切换到“选中文本”。'
+            : ' 右栏可编辑，确认后按编辑后的文本替换选中区。'}
         </p>
 
         <div className="dialog__actions">

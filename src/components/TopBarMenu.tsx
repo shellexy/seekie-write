@@ -73,10 +73,9 @@ export function TopBarMenu({
       {item('替换', 'Ctrl+H', onReplace)}
       <div className="topbar-menu__sep" />
       {item('中文简繁转换', '', onChinese)}
+      {item('查看 Markdown 源码', '', onSource)}
       <div className="topbar-menu__sep" />
-      {item('查看源码', '', onSource)}
       {item('设置', 'Ctrl+,', onSettings)}
-      <div className="topbar-menu__sep" />
       {item('关于', '', onAbout)}
     </div>
   )

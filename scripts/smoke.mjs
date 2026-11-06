@@ -396,7 +396,7 @@ try {
   )
   check(
     '⋮ 菜单项齐全',
-    ['撤销', '重做', '查找', '替换', '查看源码', '设置', '关于'].every((label) =>
+    ['撤销', '重做', '查找', '替换', '查看 Markdown 源码', '设置', '关于'].every((label) =>
       menuItems.some((item) => item.includes(label)),
     ),
     JSON.stringify(menuItems),
