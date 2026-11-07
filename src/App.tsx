@@ -14,6 +14,7 @@ import { runEditorCommand } from './editor/commandBus'
 import { copySelection } from './editor/clipboard'
 import { insertClipboardPlainText } from './editor/plainPaste'
 import { createDocxImageResolver, prepareDocxMarkdown } from './lib/docxImages'
+import { replaceGithubTocWithMarker } from './lib/toc'
 
 interface ClosedTab {
   savePath: string | null
@@ -46,6 +47,7 @@ import { TopBarMenu } from './components/TopBarMenu'
 import { SourceCodeDialog } from './components/SourceCodeDialog'
 import { AboutDialog } from './components/AboutDialog'
 import { ChineseConvertDialog } from './components/ChineseConvertDialog'
+import { TocInsertDialog, type TocMode } from './components/TocInsertDialog'
 import { IconMore } from './components/Icons'
 import { SmartHeadingsDialog } from './components/SmartHeadingsDialog'
 import { Toast, ConvertingOverlay, CloseTabsDialog, ImageModeDialog } from './components/Overlays'
@@ -100,6 +102,7 @@ export default function App() {
   const [moreOpen, setMoreOpen] = useState(false)
   const [sourceOpen, setSourceOpen] = useState(false)
   const [chineseOpen, setChineseOpen] = useState(false)
+  const [tocInsertOpen, setTocInsertOpen] = useState(false)
   const [sourceText, setSourceText] = useState('')
   const [aboutOpen, setAboutOpen] = useState(false)
   const [smartHeadings, setSmartHeadings] = useState<{
@@ -395,7 +398,10 @@ export default function App() {
         // docx：在渲染进程里转，浏览器环境会读取 data:image 图片
         const { convertMarkdownToDocx } = await import('@mohtasham/md-to-docx')
         const resolveDocxImage = createDocxImageResolver()
-        const docxMarkdown = await prepareDocxMarkdown(inlined.markdown, resolveDocxImage)
+        const docxMarkdown = await prepareDocxMarkdown(
+          replaceGithubTocWithMarker(inlined.markdown),
+          resolveDocxImage,
+        )
         const blob = await convertMarkdownToDocx(docxMarkdown, {
           codeHighlighting: {
             enabled: true,
@@ -1111,6 +1117,27 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [findState.open])
 
+  const insertToc = useCallback(
+    (mode: TocMode) => {
+      const ctx = ctxRef.current
+      if (!ctx) return
+      const view = ctx.get(editorViewCtx)
+      const type = view.state.schema.nodes.seekieToc
+      if (!type) {
+        notify('目录节点尚未就绪', 'error')
+        return
+      }
+      const { state } = view
+      const $from = state.selection.$from
+      let pos = $from.depth > 0 ? $from.after(1) : $from.pos
+      pos = Math.min(Math.max(pos, 0), state.doc.content.size)
+      view.dispatch(state.tr.insert(pos, type.create({ mode })).scrollIntoView())
+      view.focus()
+      setTocInsertOpen(false)
+    },
+    [notify],
+  )
+
   /* ----------------------------- 菜单命令 ----------------------------- */
 
   useEffect(() => {
@@ -1153,6 +1180,9 @@ export default function App() {
           break
         case 'edit:replace':
           setFindState({ open: true, mode: 'replace' })
+          break
+        case 'insert:toc':
+          setTocInsertOpen(true)
           break
         case 'app:settings':
           setSettingsOpen(true)
@@ -1464,6 +1494,12 @@ export default function App() {
         onChinese={() => setChineseOpen(true)}
         onSettings={() => setSettingsOpen(true)}
         onAbout={() => setAboutOpen(true)}
+      />
+
+      <TocInsertDialog
+        open={tocInsertOpen}
+        onInsert={insertToc}
+        onCancel={() => setTocInsertOpen(false)}
       />
 
       <ChineseConvertDialog

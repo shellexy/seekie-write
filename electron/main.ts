@@ -260,6 +260,7 @@ function createWindow(): void {
         label: '插入',
         submenu: [
           { label: '图片…', click: send('insert:image') },
+          { label: '目录…', click: send('insert:toc') },
           { label: '表格', click: send('insert:table') },
           { label: '分割线', click: send('insert:hr') },
         ],

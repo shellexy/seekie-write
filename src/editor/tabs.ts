@@ -14,6 +14,22 @@ import {
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { undoCommand, redoCommand } from '@milkdown/kit/plugin/history'
 import { searchPlugin } from './searchPlugin'
+import { buildOutline } from '../lib/outline'
+import {
+  assignTocSlugs,
+  convertTocParagraphs,
+  GITHUB_TOC_PLACEHOLDER,
+  replaceGithubTocBlocks,
+  tocNavHtml,
+} from '../lib/toc'
+
+function finalizeTocMarkdown(markdown: string, doc: import('@milkdown/kit/prose/model').Node | undefined): string {
+  if (!doc || !markdown.includes(GITHUB_TOC_PLACEHOLDER)) return markdown
+  const headings = assignTocSlugs(
+    buildOutline(doc).map((item) => ({ level: item.level, text: item.text })),
+  )
+  return markdown.split(GITHUB_TOC_PLACEHOLDER).join(tocNavHtml(headings))
+}
 
 export interface TabRuntime {
   id: string
@@ -63,9 +79,11 @@ export class TabStore {
   createStateFromMarkdown(markdown: string): EditorState {
     const schema = this.ctx.get(schemaCtx)
     const parser = this.ctx.get(parserCtx)
-    const parsed = parser(markdown || '')
+    const parsed = parser(replaceGithubTocBlocks(markdown || ''))
     // 空字符串解析出来是空 doc，而 schema 要求 block+，补一个空段落
-    const doc = parsed.childCount > 0 ? parsed : (schema.topNodeType.createAndFill() ?? parsed)
+    let doc = parsed.childCount > 0 ? parsed : (schema.topNodeType.createAndFill() ?? parsed)
+    const tocType = schema.nodes.seekieToc
+    if (tocType) doc = convertTocParagraphs(doc, tocType)
     return PSState.create({
       schema,
       plugins: this.getPlugins(),
@@ -136,7 +154,7 @@ export class TabStore {
   /** 当前活动标签的 markdown（用于保存 / 自动保存） */
   currentMarkdown(): string {
     try {
-      return this.crepe.getMarkdown()
+      return finalizeTocMarkdown(this.crepe.getMarkdown(), this.view?.state.doc)
     } catch {
       return ''
     }
@@ -148,7 +166,7 @@ export class TabStore {
     const state = this.states.get(tabId)
     if (!state) return ''
     try {
-      return this.ctx.get(serializerCtx)(state.doc)
+      return finalizeTocMarkdown(this.ctx.get(serializerCtx)(state.doc), state.doc)
     } catch {
       return ''
     }

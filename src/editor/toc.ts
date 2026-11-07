@@ -4,7 +4,7 @@ import { Plugin, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view'
 import { $node, $prose, $remark, $view } from '@milkdown/kit/utils'
 import { buildOutline } from '../lib/outline'
-import { assignTocSlugs } from '../lib/toc'
+import { assignTocSlugs, GITHUB_TOC_PLACEHOLDER } from '../lib/toc'
 
 /**
  * [TOC] 在编辑器里是一个 atom 节点：
@@ -23,7 +23,15 @@ export const tocRemark = $remark('seekieTocRemark', () => () => (tree: any) => {
         node.children[0]?.type === 'text' &&
         node.children[0].value?.trim().toUpperCase() === '[TOC]'
       ) {
-        parent.children[i] = { type: 'seekieToc', value: '[TOC]', children: [] }
+        parent.children[i] = { type: 'seekieToc', mode: 'marker', value: '[TOC]', children: [] }
+        continue
+      }
+      // 打开含 GitHub 兼容目录的 .md 时，同样落到 TOC 节点
+      if (
+        node?.type === 'html' &&
+        /^<nav\b[^>]*\brole=["']doc-toc["'][^>]*>/i.test(node.value ?? '')
+      ) {
+        parent.children[i] = { type: 'seekieToc', mode: 'github', value: '[TOC]', children: [] }
         continue
       }
       visit(node)
@@ -38,19 +46,44 @@ const tocNode = $node('seekieToc', () => ({
   selectable: true,
   draggable: false,
   isolating: true,
-  parseDOM: [{ tag: 'div[data-seekie-toc]' }],
-  toDOM: () => ['div', { 'data-seekie-toc': 'true', class: 'seekie-toc' }],
+  attrs: {
+    mode: { default: 'marker' },
+  },
+  parseDOM: [
+    {
+      tag: 'div[data-seekie-toc]',
+      getAttrs: (dom: HTMLElement) => ({
+        mode: dom.getAttribute('data-mode') === 'github' ? 'github' : 'marker',
+      }),
+    },
+    {
+      tag: 'nav[role="doc-toc"]',
+      getAttrs: () => ({ mode: 'github' }),
+    },
+  ],
+  toDOM: (node: PMNode) => [
+    'div',
+    {
+      'data-seekie-toc': 'true',
+      'data-mode': node.attrs.mode,
+      class: 'seekie-toc',
+    },
+  ],
   parseMarkdown: {
     match: (node: any) => node.type === 'seekieToc',
-    runner: (state: any, _node: any, proseType: any) => {
-      state.addNode(proseType)
+    runner: (state: any, node: any, proseType: any) => {
+      state.addNode(proseType, { mode: node.mode === 'github' ? 'github' : 'marker' })
     },
   },
   toMarkdown: {
     match: (node: PMNode) => node.type.name === 'seekieToc',
-    runner: (state: any) => {
+    runner: (state: any, node: PMNode) => {
       // 用 html 节点让 remark-stringify 原样输出，不把方括号转义成 \[TOC]
-      state.addNode('html', [], '[TOC]')
+      state.addNode(
+        'html',
+        [],
+        node.attrs.mode === 'github' ? GITHUB_TOC_PLACEHOLDER : '[TOC]',
+      )
     },
   },
 }))
@@ -122,7 +155,7 @@ class TocNodeView implements NodeView {
     head.className = 'seekie-toc__head'
     const title = document.createElement('span')
     title.className = 'seekie-toc__title'
-    title.textContent = '目录'
+    title.textContent = this.node.attrs.mode === 'github' ? '目录 · GitHub' : '目录'
     const remove = document.createElement('button')
     remove.type = 'button'
     remove.className = 'seekie-toc__remove'
@@ -187,6 +220,35 @@ class TocNodeView implements NodeView {
   }
 }
 
+const tocInput = $prose(
+  (ctx) =>
+    new Plugin({
+      appendTransaction(transactions, _oldState, newState) {
+        if (!transactions.some((tr) => tr.docChanged)) return null
+        const type = tocNode.type(ctx)
+        const positions: number[] = []
+        newState.doc.descendants((node, pos) => {
+          if (
+            node.type.name === 'paragraph' &&
+            node.textContent.trim().toUpperCase() === '[TOC]'
+          ) {
+            positions.push(pos)
+            return false
+          }
+          return true
+        })
+        if (!positions.length) return null
+        const tr = newState.tr
+        for (const pos of [...positions].reverse()) {
+          const node = newState.doc.nodeAt(pos)
+          if (!node) continue
+          tr.replaceWith(pos, pos + node.nodeSize, type.create({ mode: 'marker' }))
+        }
+        return tr
+      },
+    }),
+)
+
 const tocRefresh = $prose(
   () =>
     new Plugin({
@@ -205,6 +267,7 @@ export const tocPlugins = [
   tocNode,
   tocView,
   tocRefresh,
+  tocInput,
 ] as const
 
 export function installTocPlugins(ctx: Ctx): void {
