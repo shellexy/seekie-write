@@ -6,7 +6,7 @@ export type ChineseDirection = 's2t' | 't2s' | 's2tw' | 's2hk'
 export const DIRECTION_LABELS: Record<ChineseDirection, string> = {
   s2t: '简转繁',
   t2s: '繁转简',
-  s2tw: '转台湾正体',
+  s2tw: '转台湾繁体',
   s2hk: '转香港繁体',
 }
 

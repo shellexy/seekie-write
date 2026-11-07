@@ -1,7 +1,7 @@
 {
   "name": "seekie-write",
   "productName": "seekie-write",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "A modern WYSIWYG Markdown editor",
   "main": "./out/main/index.js",
   "author": "Shellexy <299902+shellexy@users.noreply.github.com>",
