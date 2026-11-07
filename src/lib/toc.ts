@@ -69,14 +69,42 @@ function escapeHtml(text: string): string {
   })
 }
 
-export function tocNavHtml(headings: TocHeading[]): string {
-  const items = headings
-    .map(
-      (heading) =>
-        `  <li class="toc-level-${heading.level}"><a href="#user-content-${escapeHtml(heading.slug)}">${escapeHtml(heading.text)}</a></li>`,
-    )
+interface TocTreeItem {
+  heading: TocHeading
+  children: TocTreeItem[]
+}
+
+function tocTree(headings: TocHeading[]): TocTreeItem[] {
+  const roots: TocTreeItem[] = []
+  const stack: TocTreeItem[] = []
+  for (const heading of headings) {
+    const item: TocTreeItem = { heading, children: [] }
+    while (stack.length && stack[stack.length - 1].heading.level >= heading.level) {
+      stack.pop()
+    }
+    if (stack.length) stack[stack.length - 1].children.push(item)
+    else roots.push(item)
+    stack.push(item)
+  }
+  return roots
+}
+
+function renderTocItems(items: TocTreeItem[], indent: string): string {
+  return items
+    .map((item) => {
+      const link = `<a href="#user-content-${escapeHtml(item.heading.slug)}">${escapeHtml(item.heading.text)}</a>`
+      if (!item.children.length) return `${indent}<li>${link}</li>`
+      return `${indent}<li>${link}\n${renderTocList(item.children, `${indent}  `)}\n${indent}</li>`
+    })
     .join('\n')
-  return `<nav role="doc-toc" aria-label="目录">\n<ul>\n${items}\n</ul>\n</nav>`
+}
+
+function renderTocList(items: TocTreeItem[], indent: string): string {
+  return `${indent}<ul>\n${renderTocItems(items, `${indent}  `)}\n${indent}</ul>`
+}
+
+export function tocNavHtml(headings: TocHeading[]): string {
+  return `<nav role="doc-toc" aria-label="目录">\n${renderTocList(tocTree(headings), '')}\n</nav>`
 }
 
 
