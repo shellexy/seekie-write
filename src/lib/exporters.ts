@@ -1,4 +1,5 @@
 import { Marked, type TokenizerAndRendererExtension } from 'marked'
+import { assignTocSlugs, tocNavHtml } from './toc'
 import katex from 'katex'
 import type { DocAsset } from '@shared/types'
 import { api } from './api'
@@ -61,12 +62,43 @@ const blockMath: TokenizerAndRendererExtension = {
   },
 }
 
-/** 单文件导出的 Marked 实例：图片已是 data URI，公式转成 MathML（不需要 KaTeX CSS/字体） */
-const exportMarked = new Marked({ gfm: true, breaks: false })
-exportMarked.use({ extensions: [blockMath, inlineMath] })
+function htmlToPlainText(html: string): string {
+  if (typeof document !== 'undefined') {
+    const div = document.createElement('div')
+    div.innerHTML = html
+    return div.textContent ?? ''
+  }
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+}
 
+/**
+ * 单文件导出的 Marked 实例：图片已是 data URI，公式转成 MathML。
+ * 同时收集标题，按 GitHub 规则给标题加 user-content-* id，并把 [TOC] 展开成目录。
+ */
 function markdownToHtml(markdown: string): string {
-  return exportMarked.parse(markdown, { async: false }) as string
+  const marked = new Marked({ gfm: true, breaks: false })
+  marked.use({ extensions: [blockMath, inlineMath] })
+  let html = marked.parse(markdown, { async: false }) as string
+
+  const headings: Array<{ level: number; text: string }> = []
+  html = html.replace(/<h([1-6])(?:\s[^>]*)?>([\s\S]*?)<\/h\1>/g, (_match, level: string, inner: string) => {
+    headings.push({ level: Number(level), text: htmlToPlainText(inner) })
+    return _match
+  })
+  const toc = assignTocSlugs(headings)
+  let index = 0
+  html = html.replace(/<h([1-6])(?:\s[^>]*)?>/g, (_match, level: string) => {
+    const slug = toc[index]?.slug ?? 'section'
+    index += 1
+    return `<h${level} id="user-content-${slug}">`
+  })
+  return html.replace(/<p>\s*\[TOC\]\s*<\/p>/gi, tocNavHtml(toc))
 }
 
 const EXPORT_CSS = `

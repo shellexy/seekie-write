@@ -10,6 +10,7 @@ import "@milkdown/crepe/theme/nord.css";
 import './crepe-dark.css'
 import { crepeFeatures, buildTopBar } from './topBarConfig'
 import { putAsset } from '../lib/assets'
+import { tocPlugins, tocRemark } from './toc'
 
 /**
  * 代码块用自定义 CodeMirror 主题（跟随 CSS 变量），
@@ -49,7 +50,7 @@ export interface CreateEditorOptions {
 export function createEditor(options: CreateEditorOptions): Crepe {
   const { root, defaultValue, tabId } = options
 
-  return new Crepe({
+  const crepe = new Crepe({
     root,
     defaultValue,
     features: crepeFeatures as Partial<Record<CrepeFeature, boolean>>,
@@ -64,6 +65,13 @@ export function createEditor(options: CreateEditorOptions): Crepe {
       },
     },
   })
+
+  crepe.editor.config((ctx) => {
+    ctx.inject(tocRemark.options.key, {})
+  })
+  for (const plugin of tocPlugins) crepe.editor.use(plugin)
+
+  return crepe
 }
 
 /** 深色主题：Crepe 的 .milkdown 由框架创建，这里等它出现后打标 */
