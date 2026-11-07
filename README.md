@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/github/v/release/shellexy/seekie-write?label=version&style=flat-square)](https://github.com/shellexy/seekie-write/releases) [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](https://github.com/shellexy/seekie-write/blob/main/LICENSE) ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue?style=flat-square)
 
-类 Typora 的所见即所得 Markdown 编辑器。Electron 45 + Milkdown Crepe 7.23。
+类似 Typora 的所见即所得 Markdown 编辑器。使用 Milkdown Crepe 编辑组件。
 
 ## 为什么是 seekie-write
 
@@ -12,16 +12,36 @@
 * **中文简繁转换**：简转繁 / 繁转简 / 台湾正体 / 香港繁体，代码块与链接 URL 自动跳过，双栏预览同步滚动
 * **单文件导出**：Markdown / HTML 导出把图片内嵌为 base64，发给别人不会丢图
 
+## 软件截图
+
 ![浅色](docs/screenshot-light.png)
 ![智能识别标题](docs/screenshot-smart-headings.png)
 ![中文简繁转换](docs/screenshot-chinese-convert.png)
 ![深色](docs/screenshot-dark.png)
 
+<nav role="doc-toc" aria-label="目录">
+<ul>
+  <li><a href="#user-content-seekie-write">seekie-write</a>
+    <ul>
+      <li><a href="#user-content-为什么是-seekie-write">为什么是 seekie-write</a></li>
+      <li><a href="#user-content-软件截图">软件截图</a></li>
+      <li><a href="#user-content-现在能做什么">现在能做什么</a></li>
+      <li><a href="#user-content-开发">开发</a></li>
+      <li><a href="#user-content-冒烟测试">冒烟测试</a></li>
+      <li><a href="#user-content-快捷键">快捷键</a></li>
+      <li><a href="#user-content-目录结构">目录结构</a></li>
+      <li><a href="#user-content-已知限制">已知限制</a></li>
+      <li><a href="#user-content-已验证的行为xvfb-cdp-自动化跑过">已验证的行为（Xvfb + CDP 自动化跑过）</a></li>
+    </ul>
+  </li>
+</ul>
+</nav>
+
 ## 现在能做什么
 
 * **所见即所得编辑**：Milkdown Crepe 内核，表格 / 代码块（CodeMirror）/ LaTeX 公式（KaTeX，行内 `$…$` 与块级 `$$…$$`）/ 任务列表 / 图片块齐全
-* **[TOC] 目录**：输入 / 粘贴 `[TOC]` 自动转为只读目录节点；右键“插入 → 目录…”可选 Typora 标记或 GitHub 兼容静态目录；HTML 导出带 GitHub 风格锚点，docx 导出生成 Word 目录域；打印时隐藏删除按钮
-* **[TOC] 目录**：正文中独立一行的 `[TOC]` 显示为只读目录节点，自动跟随标题更新；可整体删除，Markdown 源码保持 `[TOC]`；HTML 导出展开为带 GitHub 风格 `user-content-*` 锚点的目录，docx 导出交给 md-to-docx 展开
+* **\[TOC] 目录**：输入 / 粘贴 `[TOC]` 自动转为只读目录节点；右键“插入 → 目录…”可选 Typora 标记或 GitHub 兼容静态目录；HTML 导出带 GitHub 风格锚点，docx 导出生成 Word 目录域；打印时隐藏删除按钮
+* **\[TOC] 目录**：正文中独立一行的 `[TOC]` 显示为只读目录节点，自动跟随标题更新；可整体删除，Markdown 源码保持 `[TOC]`；HTML 导出展开为带 GitHub 风格 `user-content-*` 锚点的目录，docx 导出交给 md-to-docx 展开
 * **顶部工具栏**：Crepe TopBar（默认关闭的特性，这里显式打开），纯图标 + 鼠标悬浮提示，分组为
   `段落·标题一~六` │ `粗体 斜体 删除线 行内代码` │ `项目符号 有序列表` │ `插入图片 表格 分割线 引用 代码块` │ `清除格式`；右上角另有浮动 `⋮`
 * **右上角 ⋮ 菜单**：浮动在编辑器右上角（视觉上仍是顶栏右侧），包含撤销 / 重做 / 查找 / 替换 / 中文简繁转换 / 查看 Markdown 源码 / 设置 / 关于；不会因窗口变窄被挤到顶栏第二行
@@ -165,19 +185,19 @@ samples/               测试用的 .docx / .md
 | 关窗口前落盘草稿                                  | ✅ 写入 `userData/session.json` + `drafts/<tab>.md`                                              |
 | 深色主题                                      | ✅ 标题栏 / 大纲 / 编辑器 / 代码块同步切换                                                                    |
 | 大纲底部信息区                                   | ✅ 字数 / 字符 / 段落 / 保存状态 / 图片策略 / 缩放合并显示，无底部横向状态栏                                                |
-| 无路径标签自动保存                                 | ✅ 800ms 后写草稿区，不弹“另存为”；关闭标签会清理草稿，可从“重新打开关闭的标签”恢复                                  |
+| 无路径标签自动保存                                 | ✅ 800ms 后写草稿区，不弹“另存为”；关闭标签会清理草稿，可从“重新打开关闭的标签”恢复                                               |
 | 启动参数打开文件                                  | ✅ 只保留一个标签，不再多出空白标签                                                                            |
-| 查找 / 替换                                   | ✅ 自动聚焦、Enter/F3/Shift+F3、命中滚到中间、首尾回绕提示、高亮、`n/m`、全部替换、撤销恢复 |
-| 中文简繁转换                                  | ✅ 简转繁 / 繁转简 / 台湾正体 / 香港繁体；代码与链接 URL 不转换；双预览自适应高度、同一滚动区、可编辑，应用可撤销 |
+| 查找 / 替换                                   | ✅ 自动聚焦、Enter/F3/Shift+F3、命中滚到中间、首尾回绕提示、高亮、`n/m`、全部替换、撤销恢复                                     |
+| 中文简繁转换                                    | ✅ 简转繁 / 繁转简 / 台湾正体 / 香港繁体；代码与链接 URL 不转换；双预览自适应高度、同一滚动区、可编辑，应用可撤销                              |
 | 设置面板                                      | ✅ 外观 / Crepe 主题 / 正文宽度 / 字体 / 字号实时生效，恢复默认正常                                                   |
 | TopBar 插入                                 | ✅ 图片（`seekie-asset://` 正常渲染）、3×3 表格、分割线、引用、代码块                                                |
 | 标题栏                                       | ✅ 新建 / 打开+最近文件 / 保存 / 另存为·导出下拉；不再有撤销 / 重做 / 查找 / 替换 / 设置                                      |
 | 右上角 ⋮ 菜单                                  | ✅ 浮动按钮 right 12px / top 7px；窗口变窄不换行；撤销 / 重做 / 查找 / 替换 / 中文简繁转换 / 查看 Markdown 源码 / 设置 / 关于全部可用 |
-| 智能识别标题列表高度                              | ✅ 超过 8 个候选时对话框升到 92vh，列表占满剩余高度并可滚动 |
-| 新建空白标签                                    | ✅ 正文为空，标签临时名为“新文档-N”，不显示 placeholder                                                        |
-| 新建 / 切换标签焦点 | ✅ 新建、切换、Ctrl+Tab 后焦点自动回到编辑区 |
+| 智能识别标题列表高度                                | ✅ 超过 8 个候选时对话框升到 92vh，列表占满剩余高度并可滚动                                                            |
+| 新建空白标签                                    | ✅ 正文为空，标签临时名为“新文档-N”，不显示 placeholder                                                          |
+| 新建 / 切换标签焦点                               | ✅ 新建、切换、Ctrl+Tab 后焦点自动回到编辑区                                                                   |
 | 查看源码                                      | ✅ 对话框内 CodeMirror 只读高亮当前 Markdown 源码                                                          |
-| 关于                                        | ✅ 首页 / 版本 / Electron / Chromium / Node.js / MIT；`build/icon.png` 显示为 200×200（源 512） |
+| 关于                                        | ✅ 首页 / 版本 / Electron / Chromium / Node.js / MIT；`build/icon.png` 显示为 200×200（源 512）           |
 | 启动文件拉取                                    | ✅ 渲染层就绪后主动取启动参数文件，生产构建打开准确                                                                    |
 | 大纲单击 / 双击跳转                               | ✅ 标题停在 TopBar 下方 16px，完整可见                                                                    |
 | 标签条溢出                                     | ✅ 14 个标签时滚轮横向滚动；`Ctrl+Tab` 循环并自动滚出当前标签                                                        |
@@ -187,23 +207,23 @@ samples/               测试用的 .docx / .md
 | 窄窗口块级控件                                   | ✅ 760px 视口下 + 控件左边缘在编辑区内（248 vs 240）                                                          |
 | 右键复制选中                                    | ✅ 纯文本 / Markdown（`**粗体**`）/ 富文本（`<strong>粗体</strong>`）                                        |
 | 打开文档图片内嵌                                  | ✅ 关闭时 `seekie-asset://`；开启后 `data:image/png;base64,…`，提示“已内嵌 base64”                          |
-| 最近文件                                      | ✅ 打开后出现在打开按钮下拉，点击可重新打开；转换文档保存后源文件条目替换为 .md                                     |
+| 最近文件                                      | ✅ 打开后出现在打开按钮下拉，点击可重新打开；转换文档保存后源文件条目替换为 .md                                                    |
 | 启动恢复                                      | ✅ 默认只恢复草稿（示例：新文档-1）；勾选后示例笔记 + 草稿一起恢复                                                          |
-| 标签右键菜单                                    | ✅ 关闭其他 / 关闭右侧 / 复制文件路径 / 在文件夹中显示 / 重新打开关闭的标签                                                |
-| 关闭未保存标签                                  | ✅ 保存 / 不保存 / 取消；转换文档未编辑不提示、编辑后提示；草稿不保存关闭后可在右键菜单恢复；危险按钮 hover 保持红底白字 |
+| 标签右键菜单                                    | ✅ 关闭其他 / 关闭右侧 / 复制文件路径 / 在文件夹中显示 / 重新打开关闭的标签                                                  |
+| 关闭未保存标签                                   | ✅ 保存 / 不保存 / 取消；转换文档未编辑不提示、编辑后提示；草稿不保存关闭后可在右键菜单恢复；危险按钮 hover 保持红底白字                           |
 | 导出 Markdown / HTML                        | ✅ 单文件，图片写成 `data:image/png;base64,…`；HTML 公式输出 `<math>` MathML                                |
-| 导出 docx                                   | ✅ `PK` 开头的有效 docx；代码块 `w:color` 高亮；单行图片按页宽/页高自适应；本地/远程图片内嵌 |
+| 导出 docx                                   | ✅ `PK` 开头的有效 docx；代码块 `w:color` 高亮；单行图片按页宽/页高自适应；本地/远程图片内嵌                                    |
 | 导出 PDF                                    | ✅ `%PDF-`，`printBackground: true`；打印样式隐藏标题栏 / 大纲 / 顶栏，代码块 `pre-wrap`                          |
 | 打印预览                                      | ✅ 独立预览窗口，关闭主窗口时一并退出                                                                           |
 | 边界：base64 压缩                              | ✅ 示例 docx 的 PNG 保存为 webp；动图 GIF / webp / SVG 跳过，静态 GIF 压缩                                     |
 | 打开 .md 的相对图片                              | ✅ README.md 的 `docs/*.png` 在 dev / 生产构建自然宽 2360；源文本仍为 `docs/...`                              |
 | 标题栏 / 顶栏                                  | ✅ 另存为是下拉箭头（与打开箭头同款）；顶栏图标 SVG 用 `--fg-muted`，分隔线 `--fg-faint`，底边 `color-mix(fg 30%)`           |
 | 打包配置                                      | ✅ electron-builder 26.18.0 `--dir` 成功；`afterPack` 把 `chrome-sandbox` 设为 4755                  |
-| [TOC] 目录 | ✅ 输入/粘贴自动转换、标题变化自动更新、可整体删除；源码保留 `[TOC]`；GitHub 模式保存为静态 nav |
-| 智能识别标题 | ✅ 已有标题按原级别显示为“已有”；7 个候选，默认勾选 3 个；应用 H1/H2/H3 后一次 Ctrl+Z 还原 |
-| 繁体 / 特殊篇名识别 | ✅ `第1話`、`第1節`、`1.引言`、`序`、`楔子`、`前言`、`後記`、`附錄`、`結語` 可识别 |
-| 纯文本 / HTML 打开 | ✅ `.txt` 每行独立成段、无反斜杠；HTML `<h1>` / 列表正常转 Markdown；另存为默认源文件目录 |
-| 图片右键菜单 | ✅ 图片上右键显示“复制图片 / 复制图片地址” |
-| 纯文本粘贴 | ✅ 多行粘贴按行拆分段落，不再折叠成一行 |
-| 查看源码 | ✅ CodeMirror 只读、Markdown 高亮、带行号 |
-| 冒烟测试 | ✅ `npm run smoke:only` 27 项全部通过 |
+| \[TOC] 目录                                 | ✅ 输入/粘贴自动转换、标题变化自动更新、可整体删除；源码保留 `[TOC]`；GitHub 模式保存为静态 nav                                    |
+| 智能识别标题                                    | ✅ 已有标题按原级别显示为“已有”；7 个候选，默认勾选 3 个；应用 H1/H2/H3 后一次 Ctrl+Z 还原                                    |
+| 繁体 / 特殊篇名识别                               | ✅ `第1話`、`第1節`、`1.引言`、`序`、`楔子`、`前言`、`後記`、`附錄`、`結語` 可识别                                         |
+| 纯文本 / HTML 打开                             | ✅ `.txt` 每行独立成段、无反斜杠；HTML `<h1>` / 列表正常转 Markdown；另存为默认源文件目录                                  |
+| 图片右键菜单                                    | ✅ 图片上右键显示“复制图片 / 复制图片地址”                                                                      |
+| 纯文本粘贴                                     | ✅ 多行粘贴按行拆分段落，不再折叠成一行                                                                          |
+| 查看源码                                      | ✅ CodeMirror 只读、Markdown 高亮、带行号                                                               |
+| 冒烟测试                                      | ✅ `npm run smoke:only` 27 项全部通过                                                               |

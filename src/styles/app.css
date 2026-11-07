@@ -485,12 +485,16 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  color: var(--fg-muted);
+  color: var(--fg);
   transition: background 0.12s ease, color 0.12s ease;
+}
+.editor-more svg {
+  width: 18px;
+  height: 18px;
 }
 .editor-more:hover {
   background: var(--hover);
-  color: var(--fg);
+  color: var(--accent);
 }
 .editor-more[aria-expanded='true'] {
   background: var(--accent-soft);

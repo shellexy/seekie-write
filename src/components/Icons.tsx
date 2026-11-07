@@ -15,10 +15,10 @@ const base = (props: P) => ({
 })
 
 export const IconMore = (p: P) => (
-  <svg {...base(p)}>
-    <circle cx="12" cy="5.5" r="1.4" fill="currentColor" stroke="none" />
-    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
-    <circle cx="12" cy="18.5" r="1.4" fill="currentColor" stroke="none" />
+  <svg {...base(p)} width={18} height={18}>
+    <circle cx="12" cy="5.2" r="1.8" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="18.8" r="1.8" fill="currentColor" stroke="none" />
   </svg>
 )
 
