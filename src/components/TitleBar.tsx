@@ -139,13 +139,35 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
   useEffect(() => {
     const strip = tabStripRef.current
     if (!strip || !activeId) return
-    const el = strip.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(activeId)}"]`)
-    if (!el) return
-    const sr = strip.getBoundingClientRect()
-    const er = el.getBoundingClientRect()
-    if (er.left < sr.left) strip.scrollLeft -= sr.left - er.left + 8
-    else if (er.right > sr.right) strip.scrollLeft += er.right - sr.right + 8
-  }, [activeId, tabs.length])
+    const reveal = () => {
+      const el = strip.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(activeId)}"]`)
+      if (!el) return
+      const sr = strip.getBoundingClientRect()
+      const er = el.getBoundingClientRect()
+      const padding = 10
+      if (er.left < sr.left) {
+        strip.scrollTo({ left: Math.max(0, strip.scrollLeft - (sr.left - er.left) - padding), behavior: 'smooth' })
+      } else if (er.right > sr.right) {
+        strip.scrollTo({
+          left: strip.scrollLeft + (er.right - sr.right) + padding,
+          behavior: 'smooth',
+        })
+      }
+    }
+    const raf = window.requestAnimationFrame(reveal)
+    // 新标签会让“全部标签”按钮出现/消失，标签条宽度会晚一帧才稳定
+    const timer = window.setTimeout(reveal, 80)
+    const onResize = () => reveal()
+    window.addEventListener('resize', onResize)
+    const observer = new ResizeObserver(reveal)
+    observer.observe(strip)
+    return () => {
+      window.cancelAnimationFrame(raf)
+      window.clearTimeout(timer)
+      window.removeEventListener('resize', onResize)
+      observer.disconnect()
+    }
+  }, [activeId, tabs.length, tabsOverflow])
 
   useEffect(() => {
     if (!tabContext) return
