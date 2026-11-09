@@ -136,6 +136,24 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
     }
   }, [exportOpen])
 
+  // Linux 主选择粘贴由中键 mousedown 的默认动作触发；在标签上关闭标签时
+  // 必须在 capture 阶段拦下默认行为，否则焦点仍在编辑区，可能先粘后关。
+  useEffect(() => {
+    const blockMiddlePaste = (event: MouseEvent) => {
+      if (event.button !== 1) return
+      const target = event.target as Element | null
+      if (target?.closest('.tab')) event.preventDefault()
+    }
+    document.addEventListener('mousedown', blockMiddlePaste, true)
+    document.addEventListener('mouseup', blockMiddlePaste, true)
+    document.addEventListener('auxclick', blockMiddlePaste, true)
+    return () => {
+      document.removeEventListener('mousedown', blockMiddlePaste, true)
+      document.removeEventListener('mouseup', blockMiddlePaste, true)
+      document.removeEventListener('auxclick', blockMiddlePaste, true)
+    }
+  }, [])
+
   useEffect(() => {
     const strip = tabStripRef.current
     if (!strip || !activeId) return
@@ -377,6 +395,9 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
                     } else {
                       actions.onActivateTab(tab.id)
                     }
+                  }}
+                  onAuxClick={(e) => {
+                    if (e.button === 1) e.preventDefault()
                   }}
                   onContextMenu={(e) => openTabContext(e, tab.id)}
                   title={tabTitle(tab)}
