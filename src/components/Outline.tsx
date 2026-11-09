@@ -124,7 +124,7 @@ export function Outline({
                 style={{ paddingLeft: 10 + (item.level - 1) * 12 }}
                 onClick={() => onScrollTo(item)}
                 onDoubleClick={() => onSelectSection(item)}
-                title={`${item.text}\n单击：滚动到此　双击：选中整章`}
+                title={`${item.text}\n单击：定位到此　双击：选中整章`}
                 role="button"
                 tabIndex={-1}
               >

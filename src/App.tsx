@@ -8,7 +8,7 @@ import { api } from './lib/api'
 import { useApp, type TabMeta } from './store/app'
 import { applyThemeClass, createEditor } from './editor/createEditor'
 import { applyCrepeTheme, applyEditorTypography } from './editor/theme'
-import { TabStore, scrollToPos, selectRange } from './editor/tabs'
+import { TabStore, focusPos, scrollToPos, selectRange } from './editor/tabs'
 import { EditorSession, type EditorSnapshot } from './editor/session'
 import { runEditorCommand } from './editor/commandBus'
 import { copySelection } from './editor/clipboard'
@@ -1407,7 +1407,7 @@ export default function App() {
             activeId={outlineActive}
             onScrollTo={(item) => {
               const ctx = ctxRef.current
-              if (ctx) scrollToPos(ctx, item.pos)
+              if (ctx) focusPos(ctx, item.pos)
             }}
             onSelectSection={(item) => {
               const ctx = ctxRef.current

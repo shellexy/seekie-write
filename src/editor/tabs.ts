@@ -202,6 +202,15 @@ export function selectRange(ctx: Ctx, from: number, to: number): void {
   scrollToPos(ctx, safeFrom)
 }
 
+export function focusPos(ctx: Ctx, pos: number): void {
+  const view = ctx.get(editorViewCtx)
+  const doc = view.state.doc
+  const safe = Math.min(Math.max(pos + 1, 1), doc.content.size)
+  view.dispatch(view.state.tr.setSelection(TextSelection.near(doc.resolve(safe))))
+  view.focus()
+  scrollToPos(ctx, pos)
+}
+
 export function scrollToPos(ctx: Ctx, pos: number): void {
   const view = ctx.get(editorViewCtx)
   const coords = view.coordsAtPos(Math.min(pos, view.state.doc.content.size))
