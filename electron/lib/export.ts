@@ -60,6 +60,8 @@ export async function exportPdf(
     printBackground: true,
     pageSize: 'A4',
     margins: { top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 },
+    generateTaggedPDF: true,
+    generateDocumentOutline: true,
   })
   writeFileSync(result.filePath, buffer)
   rememberDir(result.filePath)

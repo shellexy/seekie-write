@@ -181,7 +181,7 @@ class TocNodeView implements NodeView {
       item.className = `seekie-toc__item seekie-toc__level-${heading.level}`
       const link = document.createElement('a')
       link.className = 'seekie-toc__link'
-      link.href = `#user-content-${heading.slug}`
+      link.href = `#${heading.slug}`
       link.dataset.pos = String(raw[i]?.pos ?? 0)
       link.textContent = heading.text || '(空标题)'
       item.append(link)
