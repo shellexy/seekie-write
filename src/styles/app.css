@@ -1627,4 +1627,7 @@ body.is-dragging-file::after {
   .seekie-toc__remove {
     display: none !important;
   }
+  .main > .editor-pane + .editor-more {
+    display: none !important;
+  }
 }
