@@ -201,6 +201,15 @@
   border: none;
   padding: 0;
 }
+
+/* Crepe 的代码块占位符本身是 <pre>，不要再套一层边框和底色 */
+.milkdown .ProseMirror pre.milkdown-code-block-placeholder {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 .milkdown .ProseMirror hr {
   border: none;
   border-top: 1px solid var(--border);
