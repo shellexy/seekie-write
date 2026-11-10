@@ -7,8 +7,10 @@ import {
   Menu,
   nativeTheme,
   protocol,
+  screen,
   shell,
   type MenuItemConstructorOptions,
+  type BrowserWindowConstructorOptions,
 } from 'electron'
 import { extname, join, resolve } from 'node:path'
 import { statSync } from 'node:fs'
@@ -32,6 +34,7 @@ import * as drafts from './lib/drafts'
 import { mtimeOf, openDocument, pickOpenFile, revealInFolder, saveDocument } from './lib/files'
 import { closePrintPreview, exportFile, exportPdf, openPrintPreview, printWindow } from './lib/export'
 import { plainTextToMarkdown } from './lib/textConvert'
+import { loadWindowState, saveWindowState } from './lib/windowState'
 
 const __dirname_ = fileURLToPath(new URL('.', import.meta.url))
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -137,8 +140,9 @@ function registerLocalImageProtocol(): void {
 
 function createWindow(): void {
   const settings = getSettings()
+  const persisted = loadWindowState()
 
-  mainWindow = new BrowserWindow({
+  const windowOptions: BrowserWindowConstructorOptions = {
     width: 1180,
     height: 780,
     minWidth: 720,
@@ -156,9 +160,51 @@ function createWindow(): void {
       sandbox: false, // preload 需要 require('electron')，但不暴露任何 fs
       spellcheck: true,
     },
-  })
+  }
 
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
+  if (persisted) {
+    const display =
+      persisted.x != null && persisted.y != null
+        ? screen.getDisplayMatching({
+            x: persisted.x,
+            y: persisted.y,
+            width: persisted.width,
+            height: persisted.height,
+          })
+        : screen.getPrimaryDisplay()
+    const area = display.workArea
+    const width = Math.min(Math.max(720, persisted.width), area.width)
+    const height = Math.min(Math.max(480, persisted.height), area.height)
+    windowOptions.width = width
+    windowOptions.height = height
+    if (persisted.x != null) {
+      windowOptions.x = Math.min(Math.max(persisted.x, area.x), area.x + area.width - width)
+    }
+    if (persisted.y != null) {
+      windowOptions.y = Math.min(Math.max(persisted.y, area.y), area.y + area.height - height)
+    }
+  }
+
+  const restoreMaximized = persisted?.maximized === true
+  mainWindow = new BrowserWindow(windowOptions)
+
+  let windowStateTimer: NodeJS.Timeout | null = null
+  const persistWindowState = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) saveWindowState(mainWindow)
+  }
+  const scheduleWindowStateSave = () => {
+    if (windowStateTimer) clearTimeout(windowStateTimer)
+    windowStateTimer = setTimeout(persistWindowState, 300)
+  }
+  mainWindow.on('resize', scheduleWindowStateSave)
+  mainWindow.on('move', scheduleWindowStateSave)
+  mainWindow.on('maximize', scheduleWindowStateSave)
+  mainWindow.on('unmaximize', scheduleWindowStateSave)
+
+  mainWindow.on('ready-to-show', () => {
+    if (restoreMaximized) mainWindow?.maximize()
+    mainWindow?.show()
+  })
 
   const emitWindowState = () => {
     if (!mainWindow) return
@@ -176,6 +222,10 @@ function createWindow(): void {
   // 关闭前先让渲染层把无路径的标签写进草稿区（最多等 1.5s）
   let closeReady = false
   mainWindow.on('close', (event) => {
+    if (!closeReady) {
+      if (windowStateTimer) clearTimeout(windowStateTimer)
+      persistWindowState()
+    }
     if (closeReady) return
     event.preventDefault()
     closeReady = true
