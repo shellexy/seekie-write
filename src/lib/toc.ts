@@ -104,7 +104,7 @@ function renderTocList(items: TocTreeItem[], indent: string): string {
 }
 
 export function tocNavHtml(headings: TocHeading[]): string {
-  return `<nav role="doc-toc" aria-label="目录">\n${renderTocList(tocTree(headings), '')}\n</nav>`
+  return `<nav role="doc-toc" aria-label="目录">\n<div role="heading" aria-level="2">目录</div>\n${renderTocList(tocTree(headings), '')}\n</nav>`
 }
 
 

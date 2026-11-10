@@ -28,12 +28,12 @@ export function TocInsertDialog({
         <p className="dialog__hint">选择目录格式：</p>
         <div className="toc-insert__options">
           <div className="toc-insert__option">
-            <b>A：[TOC] 标记</b>
+            <b>[TOC] 标记</b>
             <p>文件小巧，Typora 等编辑器可直接渲染。</p>
             <p className="toc-insert__warn">但 GitHub 等平台会显示为一行普通文本。</p>
           </div>
           <div className="toc-insert__option">
-            <b>B：GitHub 兼容目录</b>
+            <b>GitHub 兼容目录</b>
             <p>在 GitHub、VS Code 等支持 HTML 的环境中显示为可点击列表。</p>
             <p className="toc-insert__warn">
               文件体积较大，保存时会展开为静态列表，离开本编辑器后目录不会自动更新。
