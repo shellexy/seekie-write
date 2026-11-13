@@ -356,12 +356,15 @@
   border-color: var(--danger);
 }
 .tab__label {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
 }
 .tab__state {
+  flex: 0 0 auto;
   font-size: 10px;
   color: var(--accent);
   min-width: 8px;
@@ -371,15 +374,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  flex: 0 0 auto;
+  width: 0;
+  min-width: 0;
   height: 16px;
+  padding: 0;
+  overflow: hidden;
   border-radius: 50%;
   color: var(--fg-faint);
   opacity: 0;
   transition: opacity 0.12s ease, background 0.12s ease;
 }
-.tab:hover .tab__close,
-.tab.is-active .tab__close {
+.tab.is-active .tab__close,
+.tab.is-hover .tab__close {
+  width: 16px;
   opacity: 1;
 }
 .tab__close:hover {

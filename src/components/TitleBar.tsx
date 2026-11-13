@@ -52,6 +52,7 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
   const [tabsOverflow, setTabsOverflow] = useState(false)
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
   const [tabContext, setTabContext] = useState<{ tabId: string; x: number; y: number } | null>(null)
+  const [hoverTabId, setHoverTabId] = useState<string | null>(null)
   const tabStripRef = useRef<HTMLDivElement>(null)
 
   // 标签条用满剩余宽度；放不下时在右侧显示“全部标签”下拉
@@ -387,7 +388,17 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
                   aria-selected={tab.id === activeId}
                   className={`tab${tab.id === activeId ? ' is-active' : ''}${
                     tab.conflict ? ' is-conflict' : ''
-                  }`}
+                  }${tab.id === hoverTabId ? ' is-hover' : ''}`}
+                  onMouseEnter={(e) => {
+                    if (tab.id === activeId) return
+                    // 先记住未显示关闭按钮时的自然宽度，悬停期间锁住宽度
+                    e.currentTarget.style.width = `${e.currentTarget.getBoundingClientRect().width}px`
+                    setHoverTabId(tab.id)
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.width = ''
+                    setHoverTabId((id) => (id === tab.id ? null : id))
+                  }}
                   onMouseDown={(e) => {
                     if (e.button === 1) {
                       e.preventDefault()
