@@ -396,8 +396,17 @@ export function TitleBar({ actions }: { actions: TitleBarActions }) {
                     setHoverTabId(tab.id)
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.width = ''
+                    const el = e.currentTarget
                     setHoverTabId((id) => (id === tab.id ? null : id))
+                    // 等关闭按钮先收缩为 0，再清掉锁定的宽度；
+                    // 否则自动宽度会先按“文字 + 关闭按钮”重排，造成跳动。
+                    window.requestAnimationFrame(() => {
+                      window.requestAnimationFrame(() => {
+                        if (el.isConnected && !el.classList.contains('is-hover')) {
+                          el.style.width = ''
+                        }
+                      })
+                    })
                   }}
                   onMouseDown={(e) => {
                     if (e.button === 1) {
